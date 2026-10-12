@@ -13,6 +13,7 @@ export { toolContentZh } from './zh';
 export { toolContentZhTW } from './zh-TW';
 export { toolContentPt } from './pt';
 export { toolContentAr } from './ar';
+export { toolContentHe } from './he';
 export { toolContentIt } from './it';
 export { toolContentId } from './id';
 export { toolContentVn } from './vi';
@@ -28,6 +29,7 @@ import { toolContentZh } from './zh';
 import { toolContentZhTW } from './zh-TW';
 import { toolContentPt } from './pt';
 import { toolContentAr } from './ar';
+import { toolContentHe } from './he';
 import { toolContentIt } from './it';
 import { toolContentId } from './id';
 import { toolContentVn } from './vi';
@@ -56,6 +58,7 @@ export function getToolContent(locale: Locale, toolId: string): ToolContent | un
     'zh-TW': toolContentZhTW,
     pt: toolContentPt,
     ar: toolContentAr,
+    he: toolContentHe,
     it: toolContentIt,
     id: toolContentId,
     vi: toolContentVn,
