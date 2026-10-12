@@ -16,7 +16,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google';
  * Used for body text and UI elements
  */
 export const inter = Inter({
-  subsets: ['latin', 'latin-ext'],
+  subsets: ['latin', 'latin-ext', 'hebrew'],
   display: 'swap',
   variable: '--font-inter',
   preload: true,
@@ -29,7 +29,7 @@ export const inter = Inter({
  * Used for code snippets and technical content
  */
 export const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin', 'latin-ext'],
+  subsets: ['latin', 'latin-ext', 'hebrew'],
   display: 'swap',
   variable: '--font-jetbrains-mono',
   preload: false, // Only preload if code is shown above the fold
