@@ -980,6 +980,435 @@ export function OrganizeToolOptions({
       );
     }
 
+    case 'organize-pdf': {
+      const sortMode = options.sortMode || 'original';
+      const customOrder = options.customOrder || '';
+      const rotateAll = options.rotateAll ?? 0;
+      const deletePages = options.deletePages || '';
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? '页面组织与排序参数' : 'Page Organization Settings'}
+            </label>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground block">{isZh ? '页面重排顺序' : 'Page Reorder Sequence'}</label>
+              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                {[
+                  { id: 'original', label: isZh ? '保持原序' : 'Original Order' },
+                  { id: 'reverse', label: isZh ? '逆序倒排' : 'Reverse All' },
+                  { id: 'odd-first', label: isZh ? '奇数页在前' : 'Odd Pages First' },
+                  { id: 'even-first', label: isZh ? '偶数页在前' : 'Even Pages First' },
+                  { id: 'custom', label: isZh ? '自定义序列' : 'Custom Sequence' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => onChange('sortMode', m.id)}
+                    className={`py-1.5 px-2.5 rounded-lg border text-left font-medium transition-all ${
+                      sortMode === m.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              {sortMode === 'custom' && (
+                <div className="pt-1.5">
+                  <input
+                    type="text"
+                    value={customOrder}
+                    onChange={(e) => onChange('customOrder', e.target.value)}
+                    placeholder={isZh ? '如 1, 3, 2, 5, 4 或 1-3, 5' : 'e.g. 1, 3, 2, 5, 4 or 1-3, 5'}
+                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-background"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '统一旋转页面' : 'Rotate All Pages'}</label>
+                <select
+                  value={rotateAll}
+                  onChange={(e) => onChange('rotateAll', parseInt(e.target.value, 10) || 0)}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                >
+                  <option value={0}>{isZh ? '不旋转 (0°)' : 'No Rotation (0°)'}</option>
+                  <option value={90}>{isZh ? '顺时针 90°' : 'Clockwise 90°'}</option>
+                  <option value={180}>{isZh ? '旋转 180°' : 'Rotate 180°'}</option>
+                  <option value={270}>{isZh ? '逆时针 90° (270°)' : 'Counter-Clockwise 90°'}</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '剔除页码 (可选)' : 'Delete Pages (Optional)'}</label>
+                <input
+                  type="text"
+                  value={deletePages}
+                  onChange={(e) => onChange('deletePages', e.target.value)}
+                  placeholder={isZh ? '如 2, 4' : 'e.g. 2, 4'}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case 'pdf-multi-tool': {
+      const reversePages = options.reversePages ?? false;
+      const stripBlank = options.stripBlank ?? false;
+      const batchRotate = options.batchRotate ?? 0;
+      const insertBlank = options.insertBlank || 'none';
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? '多功能综合任务流水线' : 'Multi-Task Batch Pipeline'}
+            </label>
+            <div className="space-y-2 text-xs">
+              <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer">
+                <span>{isZh ? '页面序列逆向倒序翻转' : 'Reverse Page Sequence'}</span>
+                <input
+                  type="checkbox"
+                  checked={reversePages}
+                  onChange={(e) => onChange('reversePages', e.target.checked)}
+                  className="rounded text-primary accent-primary"
+                />
+              </label>
+              <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer">
+                <span>{isZh ? '智能识别并剔除纯空白页' : 'Auto-Strip Blank Pages'}</span>
+                <input
+                  type="checkbox"
+                  checked={stripBlank}
+                  onChange={(e) => onChange('stripBlank', e.target.checked)}
+                  className="rounded text-primary accent-primary"
+                />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '批量旋转' : 'Batch Rotate'}</label>
+                <select
+                  value={batchRotate}
+                  onChange={(e) => onChange('batchRotate', parseInt(e.target.value, 10) || 0)}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                >
+                  <option value={0}>{isZh ? '保持角度 (0°)' : 'Keep Angle (0°)'}</option>
+                  <option value={90}>+90°</option>
+                  <option value={180}>180°</option>
+                  <option value={270}>+270° (-90°)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '插入空白隔离页' : 'Insert Blank Pages'}</label>
+                <select
+                  value={insertBlank}
+                  onChange={(e) => onChange('insertBlank', e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                >
+                  <option value="none">{isZh ? '不插入' : 'None'}</option>
+                  <option value="every-page">{isZh ? '每页之后插入' : 'After Every Page'}</option>
+                  <option value="at-end">{isZh ? '仅文档末尾追加' : 'At Document End'}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case 'rotate-custom': {
+      const angle = options.angle ?? 90;
+      const direction = options.direction || 'clockwise';
+      const scope = options.scope || 'all';
+      const customPages = options.customPages || '';
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? '自定义旋转参数' : 'Custom Rotation Settings'}
+            </label>
+
+            {/* Quick angle buttons */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-foreground font-medium">{isZh ? '快捷旋转预设' : 'Preset Angles'}</label>
+              <div className="grid grid-cols-4 gap-1.5 text-xs">
+                {[90, 180, 270, 0].map((deg) => (
+                  <button
+                    key={deg}
+                    type="button"
+                    onClick={() => onChange('angle', deg)}
+                    className={`py-1.5 rounded-lg border text-center font-medium transition-all ${
+                      angle === deg
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {deg === 0 ? (isZh ? '重置 0°' : 'Reset 0°') : `${deg}°`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Stepless Angle Slider */}
+            <div className="space-y-1 pt-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">{isZh ? '精确连续角度微调' : 'Fine-Tune Angle'}</span>
+                <span className="text-primary font-bold">{angle}°</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={angle}
+                onChange={(e) => onChange('angle', parseInt(e.target.value, 10) || 0)}
+                className="w-full accent-primary"
+              />
+            </div>
+
+            {/* Rotation Direction */}
+            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+              {[
+                { id: 'clockwise', label: isZh ? '顺时针 ↻' : 'Clockwise ↻' },
+                { id: 'counter-clockwise', label: isZh ? '逆时针 ↺' : 'Counter-Clockwise ↺' },
+              ].map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => onChange('direction', d.id)}
+                  className={`py-1.5 px-2 rounded-lg border text-center font-medium transition-all ${
+                    direction === d.id
+                      ? 'border-primary bg-primary/10 text-primary font-bold'
+                      : 'border-border text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Rotation Scope */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs text-foreground font-medium">{isZh ? '作用页面范围' : 'Apply Scope'}</label>
+              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                {[
+                  { id: 'all', label: isZh ? '所有页面' : 'All Pages' },
+                  { id: 'odd', label: isZh ? '仅奇数页' : 'Odd Pages Only' },
+                  { id: 'even', label: isZh ? '仅偶数页' : 'Even Pages Only' },
+                  { id: 'custom', label: isZh ? '自定义区间' : 'Custom Pages' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => onChange('scope', s.id)}
+                    className={`py-1.5 px-2 rounded-lg border text-center font-medium transition-all ${
+                      scope === s.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              {scope === 'custom' && (
+                <div className="pt-1">
+                  <input
+                    type="text"
+                    value={customPages}
+                    onChange={(e) => onChange('customPages', e.target.value)}
+                    placeholder={isZh ? '如 1-3, 5' : 'e.g. 1-3, 5'}
+                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-background"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case 'overlay-pdf': {
+      const mode = options.mode || 'overlay';
+      const pageRange = options.pageRange || 'all';
+      const loop = options.loop ?? true;
+      const opacity = options.opacity ?? 100;
+      const scale = options.scale ?? 100;
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? '覆叠与垫底图层参数' : 'Overlay & Underlay Settings'}
+            </label>
+
+            {/* Mode: Overlay vs Underlay */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-foreground font-medium">{isZh ? '图层合成位置' : 'Layer Placement'}</label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  { id: 'overlay', label: isZh ? '前景覆叠 (印章/公文头)' : 'Foreground Overlay' },
+                  { id: 'underlay', label: isZh ? '背景垫底 (底纹/暗记)' : 'Background Underlay' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => onChange('mode', m.id)}
+                    className={`py-2 px-2.5 rounded-lg border text-center font-medium transition-all ${
+                      mode === m.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Opacity slider */}
+            <div className="space-y-1 pt-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">{isZh ? '图层不透明度' : 'Layer Opacity'}</span>
+                <span className="text-primary font-bold">{opacity}%</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="100"
+                step="5"
+                value={opacity}
+                onChange={(e) => onChange('opacity', parseInt(e.target.value, 10) || 100)}
+                className="w-full accent-primary"
+              />
+            </div>
+
+            {/* Scale slider */}
+            <div className="space-y-1 pt-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">{isZh ? '图层缩放比例' : 'Layer Scale'}</span>
+                <span className="text-primary font-bold">{scale}%</span>
+              </div>
+              <input
+                type="range"
+                min="50"
+                max="150"
+                step="5"
+                value={scale}
+                onChange={(e) => onChange('scale', parseInt(e.target.value, 10) || 100)}
+                className="w-full accent-primary"
+              />
+            </div>
+
+            {/* Loop layer switch */}
+            <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer text-xs">
+              <span>{isZh ? '当覆叠层页数少于底本时循环覆叠' : 'Loop overlay if fewer pages'}</span>
+              <input
+                type="checkbox"
+                checked={loop}
+                onChange={(e) => onChange('loop', e.target.checked)}
+                className="rounded text-primary accent-primary"
+              />
+            </label>
+
+            {/* Target page range */}
+            <div className="space-y-1 pt-1">
+              <label className="text-xs text-foreground font-medium">{isZh ? '目标页面范围' : 'Target Page Scope'}</label>
+              <input
+                type="text"
+                value={pageRange}
+                onChange={(e) => onChange('pageRange', e.target.value)}
+                placeholder={isZh ? '留空为全部，或如 1-5' : 'Empty for all, or e.g. 1-5'}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-background"
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case 'compare-pdfs': {
+      const compareMode = options.compareMode || 'side-by-side';
+      const checkText = options.checkText ?? true;
+      const checkStyle = options.checkStyle ?? true;
+      const ignoreHeaderFooter = options.ignoreHeaderFooter ?? false;
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? '文档差异对比规则' : 'Document Comparison Rules'}
+            </label>
+
+            {/* Comparison view mode */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-foreground font-medium">{isZh ? '对比呈现方式' : 'Diff Presentation Mode'}</label>
+              <div className="grid grid-cols-3 gap-1.5 text-xs">
+                {[
+                  { id: 'side-by-side', label: isZh ? '并排对照' : 'Side-by-Side' },
+                  { id: 'overlay-heatmap', label: isZh ? '视觉热力' : 'Visual Overlay' },
+                  { id: 'summary-report', label: isZh ? '差异报告' : 'Diff Summary' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => onChange('compareMode', m.id)}
+                    className={`py-1.5 px-1.5 rounded-lg border text-center font-medium transition-all ${
+                      compareMode === m.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Diff scopes */}
+            <div className="space-y-2 text-xs pt-1">
+              <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer">
+                <span>{isZh ? '检测正文文字内容变动 (增删改)' : 'Compare Text Content (Add/Del/Mod)'}</span>
+                <input
+                  type="checkbox"
+                  checked={checkText}
+                  onChange={(e) => onChange('checkText', e.target.checked)}
+                  className="rounded text-primary accent-primary"
+                />
+              </label>
+              <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer">
+                <span>{isZh ? '检测字体字号排版与样式变动' : 'Compare Typography & Formatting'}</span>
+                <input
+                  type="checkbox"
+                  checked={checkStyle}
+                  onChange={(e) => onChange('checkStyle', e.target.checked)}
+                  className="rounded text-primary accent-primary"
+                />
+              </label>
+              <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer">
+                <span>{isZh ? '自动忽略页眉页脚与动态页码' : 'Ignore Headers, Footers & Page Nums'}</span>
+                <input
+                  type="checkbox"
+                  checked={ignoreHeaderFooter}
+                  onChange={(e) => onChange('ignoreHeaderFooter', e.target.checked)}
+                  className="rounded text-primary accent-primary"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     default:
       return null;
   }

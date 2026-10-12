@@ -50,6 +50,7 @@ export const EXPORT_TOOL_IDS = new Set([
   'pdf-to-cbz',
   'extract-images',
   'extract-tables',
+  'extract-attachments',
   'ocr-pdf',
   'annotation-exporter',
   'global-invoice-parser',
@@ -61,6 +62,7 @@ export const EXPORT_TOOL_IDS = new Set([
 export const APPEND_TOOL_IDS = new Set([
   'merge-pdf',
   'alternate-merge',
+  'add-attachments',
   'image-to-pdf',
   'png-to-pdf',
   'jpg-to-pdf',
@@ -77,16 +79,13 @@ export const APPEND_TOOL_IDS = new Set([
   'psd-to-pdf',
 ]);
 
-export const NAVIGATE_TOOL_IDS = new Set([
-  'edit-pdf',
-  'organize-pdf',
-  'pdf-multi-tool',
+export const NAVIGATE_TOOL_IDS = new Set<string>([
+  // All tools now support in-place drawer parameters and options
 ]);
 
 export const ZERO_CONFIG_TOOL_IDS = new Set([
   'reverse-pages',
   'repair-pdf',
-  'view-metadata',
 ]);
 
 export function isZeroConfigTool(toolId: string): boolean {
@@ -171,6 +170,10 @@ export function normalizeStudioToolId(id: string): string {
     'ocr': 'ocr-pdf',
     'linearize': 'linearize-pdf',
     'divide': 'divide-pages',
+    'organize': 'organize-pdf',
+    'multi-tool': 'pdf-multi-tool',
+    'compare-pdf': 'compare-pdfs',
+    'metadata': 'edit-metadata',
   };
   return ALIASES[id] || id;
 }
@@ -540,6 +543,47 @@ export async function executeStudioOperation(
       processor = new MergePDFProcessor();
       break;
     }
+    case 'organize-pdf':
+    case 'pdf-multi-tool': {
+      const { OrganizePDFProcessor } = await import('@/lib/pdf/processors/organize');
+      processor = new OrganizePDFProcessor();
+      break;
+    }
+    case 'rotate-custom': {
+      const { RotatePDFProcessor } = await import('@/lib/pdf/processors/rotate');
+      processor = new RotatePDFProcessor();
+      break;
+    }
+    case 'add-attachments': {
+      const { AddAttachmentsPDFProcessor } = await import('@/lib/pdf/processors/attachments');
+      processor = new AddAttachmentsPDFProcessor();
+      break;
+    }
+    case 'edit-attachments': {
+      const { EditAttachmentsPDFProcessor } = await import('@/lib/pdf/processors/attachments');
+      processor = new EditAttachmentsPDFProcessor();
+      break;
+    }
+    case 'sign-pdf': {
+      const { SignProcessor } = await import('@/lib/pdf/processors/sign');
+      processor = new SignProcessor();
+      break;
+    }
+    case 'view-metadata': {
+      const { EditMetadataPDFProcessor } = await import('@/lib/pdf/processors/edit-metadata');
+      processor = new EditMetadataPDFProcessor();
+      break;
+    }
+    case 'compare-pdfs': {
+      const { OverlayPDFProcessor } = await import('@/lib/pdf/processors/overlay');
+      processor = new OverlayPDFProcessor();
+      break;
+    }
+    case 'edit-pdf': {
+      const { FlattenPDFProcessor } = await import('@/lib/pdf/processors/flatten');
+      processor = new FlattenPDFProcessor();
+      break;
+    }
     default:
       throw new Error(`Unsupported studio in-place tool: ${toolId}`);
   }
@@ -677,6 +721,12 @@ export async function executeStudioExport(
       const { GlobalInvoiceParserProcessor } = await import('@/lib/pdf/processors/global-invoice-parser');
       processor = new GlobalInvoiceParserProcessor();
       targetExtension = 'json';
+      break;
+    }
+    case 'extract-attachments': {
+      const { ExtractAttachmentsPDFProcessor } = await import('@/lib/pdf/processors/attachments');
+      processor = new ExtractAttachmentsPDFProcessor();
+      targetExtension = 'zip';
       break;
     }
     case 'pdf-to-zip': {

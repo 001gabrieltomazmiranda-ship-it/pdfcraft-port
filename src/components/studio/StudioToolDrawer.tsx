@@ -174,6 +174,30 @@ export const getToolDefaultOptions = (id: string, isZh: boolean = false): Record
       return { dpi: 150 };
     case 'psd-to-pdf':
       return { margin: 36, centerImage: true, scaleToFit: true };
+    case 'organize-pdf':
+      return { sortMode: 'original', customOrder: '', rotateAll: 0, deletePages: '' };
+    case 'pdf-multi-tool':
+      return { reversePages: false, stripBlank: false, batchRotate: 0, insertBlank: 'none' };
+    case 'rotate-custom':
+      return { angle: 90, direction: 'clockwise', scope: 'all', customPages: '' };
+    case 'overlay-pdf':
+      return { mode: 'overlay', pageRange: 'all', loop: true, opacity: 100, scale: 100 };
+    case 'compare-pdfs':
+      return { compareMode: 'side-by-side', checkText: true, checkStyle: true, ignoreHeaderFooter: false };
+    case 'edit-pdf':
+      return { editMode: 'direct', toolType: 'text', fontSize: 14, strokeColor: '#2563eb' };
+    case 'sign-pdf':
+      return { signType: 'draw', placement: 'bottom-right', pageSize: 'last', signerName: '', signDate: true };
+    case 'view-metadata':
+      return { exportFormat: 'json' };
+    case 'add-attachments':
+      return { attachmentLevel: 'document', targetPage: 1, description: '' };
+    case 'extract-attachments':
+      return { scope: 'all', format: 'zip' };
+    case 'edit-attachments':
+      return { action: 'view-delete', removeAll: false };
+    case 'ocr-pdf':
+      return { language: 'chi_sim', outputFormat: 'searchable-pdf', pageScope: 'all', deskew: true, preserveLayout: true };
     default:
       return {};
   }
@@ -650,6 +674,10 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
     'rasterize-pdf',
     'ocr-pdf',
     // Organize & Page tools
+    'organize-pdf',
+    'pdf-multi-tool',
+    'rotate-custom',
+    'compare-pdfs',
     'split-pdf',
     'divide-pages',
     'combine-single-page',
@@ -666,7 +694,10 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
     'table-of-contents',
     'bookmark',
     'edit-metadata',
+    'view-metadata',
     // Edit & Annotate tools
+    'edit-pdf',
+    'sign-pdf',
     'text-color',
     'background-color',
     'interactive-toc-generator',
@@ -705,11 +736,14 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
     'pdf-to-pptx',
     'extract-images',
     'extract-tables',
+    'extract-attachments',
     'annotation-exporter',
     'global-invoice-parser',
     'pdf-to-slide',
     'pdf-to-zip',
     // Import & Append tools
+    'add-attachments',
+    'edit-attachments',
     'markdown-to-pdf',
     'json-to-pdf',
     'txt-to-pdf',
@@ -1925,7 +1959,7 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
             </div>
           )}
 
-          {/* Dynamic In-Place Tool Options (Organize, Edit, Security, Optimize) */}
+          {/* Dynamic Tool Options (Organize, Edit, Security, Optimize, Import, Export) */}
           <OrganizeToolOptions
             toolId={normId}
             options={dynamicOptions}
@@ -1948,6 +1982,19 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
             locale={locale}
           />
           <OptimizeRepairToolOptions
+            toolId={normId}
+            options={dynamicOptions}
+            onChange={handleDynamicOptionChange}
+            totalPages={totalPages}
+            locale={locale}
+          />
+          <ImportAppendToolOptions
+            toolId={normId}
+            options={dynamicOptions}
+            onChange={handleDynamicOptionChange}
+            locale={locale}
+          />
+          <ExportToolOptions
             toolId={normId}
             options={dynamicOptions}
             onChange={handleDynamicOptionChange}
@@ -2015,13 +2062,6 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
                   </div>
                 </div>
               )}
-              {/* Dynamic Format Settings for Imported External Files */}
-              <ImportAppendToolOptions
-                toolId={normId}
-                options={dynamicOptions}
-                onChange={handleDynamicOptionChange}
-                locale={locale}
-              />
             </div>
           )}
 
@@ -2098,71 +2138,6 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
                   </div>
                 </div>
               )}
-
-              {/* OCR Tool Options */}
-              {normId === 'ocr-pdf' && (
-                <div className="space-y-3 p-3 rounded-xl bg-[hsl(var(--color-muted)/0.3)] border border-[hsl(var(--color-border))]">
-                  <div>
-                    <label className="text-xs font-semibold text-[hsl(var(--color-foreground))] block mb-1">
-                      {isZh ? 'OCR 识别语言' : 'OCR Language'}
-                    </label>
-                    <div className="space-y-1">
-                      {[
-                        { key: 'chi_sim', label: isZh ? '简体中文 + 英文 (推荐)' : 'Simplified Chinese + English' },
-                        { key: 'eng', label: isZh ? '仅英文 (English)' : 'English Only' },
-                        { key: 'chi_tra', label: isZh ? '繁体中文 + 英文' : 'Traditional Chinese' },
-                        { key: 'jpn', label: isZh ? '日文 + 英文' : 'Japanese' },
-                      ].map((item) => (
-                        <button
-                          key={item.key}
-                          type="button"
-                          onClick={() => setOcrLanguage(item.key as any)}
-                          className={`w-full py-1.5 px-2.5 text-xs rounded-lg border text-left font-medium transition-all ${
-                            ocrLanguage === item.key
-                              ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.1)] text-[hsl(var(--color-primary))] font-bold'
-                              : 'border-[hsl(var(--color-border))] text-[hsl(var(--color-muted-foreground))] hover:bg-[hsl(var(--color-muted))]'
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-[hsl(var(--color-foreground))] block mb-1">
-                      {isZh ? '输出成果类型' : 'Output Type'}
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { key: 'searchable-pdf', label: isZh ? '双层可搜索 PDF' : 'Searchable PDF' },
-                        { key: 'text', label: isZh ? '提取为 TXT 文本' : 'Text (.txt)' },
-                      ].map((out) => (
-                        <button
-                          key={out.key}
-                          type="button"
-                          onClick={() => setOcrOutputFormat(out.key as any)}
-                          className={`py-1.5 px-2 text-xs rounded-lg border font-medium text-center transition-all ${
-                            ocrOutputFormat === out.key
-                              ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.1)] text-[hsl(var(--color-primary))] font-bold'
-                              : 'border-[hsl(var(--color-border))] text-[hsl(var(--color-muted-foreground))] hover:bg-[hsl(var(--color-muted))]'
-                          }`}
-                        >
-                          {out.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Dynamic Format & Extraction Settings for Converted Files */}
-              <ExportToolOptions
-                toolId={normId}
-                options={dynamicOptions}
-                onChange={handleDynamicOptionChange}
-                totalPages={totalPages}
-                locale={locale}
-              />
 
               {/* General Export Notice */}
               <div className="p-3 rounded-xl bg-[hsl(var(--color-muted)/0.3)] border border-[hsl(var(--color-border))] space-y-1">

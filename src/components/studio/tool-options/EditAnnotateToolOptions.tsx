@@ -473,6 +473,206 @@ export function EditAnnotateToolOptions({
       );
     }
 
+    case 'edit-pdf': {
+      const editMode = options.editMode || 'direct';
+      const toolType = options.toolType || 'text';
+      const fontSize = options.fontSize ?? 14;
+      const strokeColor = options.strokeColor || '#2563eb';
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? 'PDF 编辑与批注选项' : 'PDF Editor & Annotation Settings'}
+            </label>
+
+            {/* Mode: Direct Text vs Annotator */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-foreground font-medium">{isZh ? '编辑核心模式' : 'Editor Mode'}</label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  { id: 'direct', label: isZh ? '文本流直接内联编辑' : 'Direct Text Edit' },
+                  { id: 'annotator', label: isZh ? '矢量画板批注模式' : 'Vector Markup Mode' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => onChange('editMode', m.id)}
+                    className={`py-2 px-2 rounded-lg border text-center font-medium transition-all ${
+                      editMode === m.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Active tool toolType */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs text-foreground font-medium">{isZh ? '默认标注工具' : 'Default Annotation Tool'}</label>
+              <div className="grid grid-cols-4 gap-1.5 text-xs">
+                {[
+                  { id: 'text', label: isZh ? '文本框' : 'Text' },
+                  { id: 'draw', label: isZh ? '涂鸦笔' : 'Pencil' },
+                  { id: 'highlight', label: isZh ? '高亮' : 'Highlight' },
+                  { id: 'shapes', label: isZh ? '图形' : 'Shapes' },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => onChange('toolType', t.id)}
+                    className={`py-1.5 rounded-lg border text-center font-medium transition-all ${
+                      toolType === t.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Font size & Color */}
+            <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '正文字号' : 'Font Size'}</label>
+                <input
+                  type="number"
+                  min="9"
+                  max="48"
+                  value={fontSize}
+                  onChange={(e) => onChange('fontSize', parseInt(e.target.value, 10) || 14)}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                />
+              </div>
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '标记颜色' : 'Color'}</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={strokeColor}
+                    onChange={(e) => onChange('strokeColor', e.target.value)}
+                    className="w-7 h-7 rounded border border-border cursor-pointer p-0.5"
+                  />
+                  <span className="font-mono text-muted-foreground text-[11px]">{strokeColor}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case 'sign-pdf': {
+      const signType = options.signType || 'draw';
+      const placement = options.placement || 'bottom-right';
+      const pageSize = options.pageSize || 'last';
+      const signerName = options.signerName || '';
+      const signDate = options.signDate ?? true;
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? '电子签名配置参数' : 'Electronic Signature Settings'}
+            </label>
+
+            {/* Signature Type */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-foreground font-medium">{isZh ? '签名呈现方式' : 'Signature Type'}</label>
+              <div className="grid grid-cols-4 gap-1.5 text-xs">
+                {[
+                  { id: 'draw', label: isZh ? '手写' : 'Draw' },
+                  { id: 'type', label: isZh ? '打字' : 'Type' },
+                  { id: 'stamp', label: isZh ? '印章' : 'Stamp' },
+                  { id: 'library', label: isZh ? '签名库' : 'Library' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => onChange('signType', s.id)}
+                    className={`py-1.5 rounded-lg border text-center font-medium transition-all ${
+                      signType === s.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Placement preset */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs text-foreground font-medium">{isZh ? '落款位置' : 'Placement Preset'}</label>
+              <div className="grid grid-cols-3 gap-1.5 text-xs">
+                {[
+                  { id: 'bottom-right', label: isZh ? '右下角落款' : 'Bottom Right' },
+                  { id: 'bottom-left', label: isZh ? '左下角落款' : 'Bottom Left' },
+                  { id: 'center', label: isZh ? '页面居中' : 'Center' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => onChange('placement', p.id)}
+                    className={`py-1.5 px-1 rounded-lg border text-center font-medium transition-all ${
+                      placement === p.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Target Page */}
+            <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '签名页码' : 'Sign Page'}</label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => onChange('pageSize', e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                >
+                  <option value="last">{isZh ? '末页签署' : 'Last Page'}</option>
+                  <option value="first">{isZh ? '首页签署' : 'First Page'}</option>
+                  <option value="all">{isZh ? '所有页齐缝签署' : 'All Pages'}</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '签署人姓名 (可选)' : 'Signer Name'}</label>
+                <input
+                  type="text"
+                  value={signerName}
+                  onChange={(e) => onChange('signerName', e.target.value)}
+                  placeholder={isZh ? '如 张三 / John Doe' : 'e.g. John Doe'}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                />
+              </div>
+            </div>
+
+            {/* Append Date Stamp switch */}
+            <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer text-xs pt-1">
+              <span>{isZh ? '附带签署日期时间戳' : 'Append Signing Date Stamp'}</span>
+              <input
+                type="checkbox"
+                checked={signDate}
+                onChange={(e) => onChange('signDate', e.target.checked)}
+                className="rounded text-primary accent-primary"
+              />
+            </label>
+          </div>
+        </div>
+      );
+    }
+
     default:
       return null;
   }

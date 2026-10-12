@@ -566,6 +566,233 @@ export function ExportToolOptions({
       );
     }
 
+    case 'ocr-pdf': {
+      const language = options.language || 'chi_sim';
+      const outputFormat = options.outputFormat || 'searchable-pdf';
+      const pageScope = options.pageScope || 'all';
+      const customPages = options.customPages || '';
+      const deskew = options.deskew ?? true;
+      const preserveLayout = options.preserveLayout ?? true;
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? 'OCR 光学字符识别参数' : 'OCR Optical Character Recognition'}
+            </label>
+
+            {/* OCR Language */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-foreground font-medium">{isZh ? '主要识别语言' : 'Primary Language'}</label>
+              <select
+                value={language}
+                onChange={(e) => onChange('language', e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background"
+              >
+                <option value="chi_sim">{isZh ? '简体中文 + 英文 (推荐)' : 'Simplified Chinese + English'}</option>
+                <option value="eng">{isZh ? '英语 (English)' : 'English Only'}</option>
+                <option value="chi_tra">{isZh ? '繁体中文 + 英文' : 'Traditional Chinese + English'}</option>
+                <option value="jpn">{isZh ? '日语 + 英文 (日本語)' : 'Japanese + English'}</option>
+                <option value="kor">{isZh ? '韩语 + 英文 (한국어)' : 'Korean + English'}</option>
+                <option value="fra">{isZh ? '法语 (Français)' : 'French'}</option>
+                <option value="deu">{isZh ? '德语 (Deutsch)' : 'German'}</option>
+                <option value="spa">{isZh ? '西班牙语 (Español)' : 'Spanish'}</option>
+                <option value="por">{isZh ? '葡萄牙语 (Português)' : 'Portuguese'}</option>
+                <option value="ara">{isZh ? '阿拉伯语 (العربية)' : 'Arabic'}</option>
+              </select>
+            </div>
+
+            {/* Output format */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs text-foreground font-medium">{isZh ? '输出成果类型' : 'Output Format'}</label>
+              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                {[
+                  { id: 'searchable-pdf', label: isZh ? '双层可搜索 PDF' : 'Searchable PDF' },
+                  { id: 'text', label: isZh ? '纯文本 TXT' : 'Plain Text (.txt)' },
+                  { id: 'docx', label: isZh ? 'Word 文档 (.docx)' : 'Word (.docx)' },
+                  { id: 'json', label: isZh ? '坐标 JSON 数据' : 'JSON Data' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => onChange('outputFormat', f.id)}
+                    className={`py-1.5 px-2 rounded-lg border text-center font-medium transition-all ${
+                      outputFormat === f.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Page scope */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs text-foreground font-medium">{isZh ? '识别页面范围' : 'Page Range'}</label>
+              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                {[
+                  { id: 'all', label: isZh ? '全部页面' : 'All Pages' },
+                  { id: 'custom', label: isZh ? '指定区间' : 'Custom Range' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => onChange('pageScope', s.id)}
+                    className={`py-1.5 px-2 rounded-lg border text-center font-medium transition-all ${
+                      pageScope === s.id
+                        ? 'border-primary bg-primary/10 text-primary font-bold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              {pageScope === 'custom' && (
+                <div className="pt-1">
+                  <input
+                    type="text"
+                    value={customPages}
+                    onChange={(e) => onChange('customPages', e.target.value)}
+                    placeholder={isZh ? '如 1-5, 8' : 'e.g. 1-5, 8'}
+                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-background"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Enhancements */}
+            <div className="space-y-2 text-xs pt-1">
+              <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer">
+                <span>{isZh ? '图像自动倾斜校正与降噪' : 'Auto-Deskew & Denoise'}</span>
+                <input
+                  type="checkbox"
+                  checked={deskew}
+                  onChange={(e) => onChange('deskew', e.target.checked)}
+                  className="rounded text-primary accent-primary"
+                />
+              </label>
+              <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer">
+                <span>{isZh ? '保持原始多栏段落排版版式' : 'Preserve Multi-Column Layout'}</span>
+                <input
+                  type="checkbox"
+                  checked={preserveLayout}
+                  onChange={(e) => onChange('preserveLayout', e.target.checked)}
+                  className="rounded text-primary accent-primary"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case 'extract-attachments': {
+      const scope = options.scope || 'all';
+      const format = options.format || 'zip';
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? '提取内嵌附件参数' : 'Extract Attachments Settings'}
+            </label>
+            <div className="space-y-2 text-xs">
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '附件提取范围' : 'Extraction Scope'}</label>
+                <select
+                  value={scope}
+                  onChange={(e) => onChange('scope', e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                >
+                  <option value="all">{isZh ? '提取全部内嵌附件' : 'All Embedded Attachments'}</option>
+                  <option value="doc-only">{isZh ? '仅文档级附件' : 'Document-Level Files'}</option>
+                  <option value="annot-only">{isZh ? '仅页面批注附件' : 'Page Annotation Attachments'}</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '导出打包格式' : 'Export Format'}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'zip', label: isZh ? 'ZIP 压缩包 (.zip)' : 'ZIP Archive (.zip)' },
+                    { id: 'manifest', label: isZh ? '附件清单 (.json)' : 'Manifest (.json)' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => onChange('format', f.id)}
+                      className={`py-1.5 px-2 rounded-lg border text-center font-medium transition-all ${
+                        format === f.id
+                          ? 'border-primary bg-primary/10 text-primary font-bold'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case 'view-metadata': {
+      const exportFormat = options.exportFormat || 'json';
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? 'PDF 元数据与文档信息' : 'Document Metadata & Properties'}
+            </label>
+            <div className="space-y-2 text-xs">
+              <div className="p-3 rounded-lg bg-muted/40 border border-border/50 space-y-1.5 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{isZh ? '总页数:' : 'Pages:'}</span>
+                  <span className="font-semibold text-foreground">{totalPages} {isZh ? '页' : 'pages'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{isZh ? '安全加密状态:' : 'Encryption:'}</span>
+                  <span className="font-semibold text-foreground">{isZh ? '未加密 / 正常' : 'None / Normal'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{isZh ? '快速 Web 查看 (线性化):' : 'Fast Web View:'}</span>
+                  <span className="font-semibold text-foreground">{isZh ? '已优化' : 'Supported'}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '导出报告格式' : 'Export Report Format'}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'json', label: 'JSON' },
+                    { id: 'txt', label: isZh ? '纯文本 TXT' : 'Plain Text' },
+                  ].map((ef) => (
+                    <button
+                      key={ef.id}
+                      type="button"
+                      onClick={() => onChange('exportFormat', ef.id)}
+                      className={`py-1.5 px-2 rounded-lg border text-center font-medium transition-all ${
+                        exportFormat === ef.id
+                          ? 'border-primary bg-primary/10 text-primary font-bold'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {ef.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     default:
       return null;
   }

@@ -329,6 +329,124 @@ export function ImportAppendToolOptions({
       );
     }
 
+    case 'add-attachments': {
+      const attachmentLevel = options.attachmentLevel || 'document';
+      const targetPage = options.targetPage ?? 1;
+      const description = options.description || '';
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? '添加附件嵌入参数' : 'Add Attachments Settings'}
+            </label>
+            <div className="space-y-2 text-xs">
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '嵌入层级' : 'Attachment Level'}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'document', label: isZh ? '整篇文档级附件' : 'Document-Level' },
+                    { id: 'page', label: isZh ? '特定页面关联附件' : 'Page-Level' },
+                  ].map((l) => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => onChange('attachmentLevel', l.id)}
+                      className={`py-1.5 px-2 rounded-lg border text-center font-medium transition-all ${
+                        attachmentLevel === l.id
+                          ? 'border-primary bg-primary/10 text-primary font-bold'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {attachmentLevel === 'page' && (
+                <div>
+                  <label className="text-muted-foreground block mb-1">{isZh ? '绑定目标页码' : 'Target Page Number'}</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={targetPage}
+                    onChange={(e) => onChange('targetPage', parseInt(e.target.value, 10) || 1)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '附件说明备注 (可选)' : 'Description (Optional)'}</label>
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => onChange('description', e.target.value)}
+                  placeholder={isZh ? '如 附件证明资料、原始数据表' : 'e.g. Supporting documents, raw spreadsheet'}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case 'edit-attachments': {
+      const action = options.action || 'view-delete';
+      const removeAll = options.removeAll ?? false;
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              {isZh ? '管理与编辑附件选项' : 'Manage Attachments Settings'}
+            </label>
+            <div className="space-y-2 text-xs">
+              <div>
+                <label className="text-muted-foreground block mb-1">{isZh ? '操作类型' : 'Action Type'}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'view-delete', label: isZh ? '查看并按需删除' : 'View & Delete' },
+                    { id: 'purge-all', label: isZh ? '一键清空全部附件' : 'Purge All' },
+                  ].map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => {
+                        onChange('action', a.id);
+                        if (a.id === 'purge-all') onChange('removeAll', true);
+                      }}
+                      className={`py-1.5 px-2 rounded-lg border text-center font-medium transition-all ${
+                        action === a.id
+                          ? 'border-primary bg-primary/10 text-primary font-bold'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {action === 'view-delete' && (
+                <label className="flex items-center justify-between p-2 rounded-lg border border-border/50 hover:bg-muted/40 cursor-pointer pt-1">
+                  <span>{isZh ? '彻底抹除所有已内嵌附件' : 'Purge All Embedded Attachments'}</span>
+                  <input
+                    type="checkbox"
+                    checked={removeAll}
+                    onChange={(e) => onChange('removeAll', e.target.checked)}
+                    className="rounded text-primary accent-primary"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     default:
       return null;
   }

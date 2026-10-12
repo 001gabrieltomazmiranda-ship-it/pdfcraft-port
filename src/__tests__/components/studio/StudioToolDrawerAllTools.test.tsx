@@ -160,4 +160,160 @@ describe('StudioToolDrawer - Full Tool Parameters Alignment', () => {
       expect(onApplyMock).toHaveBeenCalledWith('text-color', expect.any(Object));
     });
   });
+
+  it('renders rich options for organize-pdf, rotate-custom, and overlay-pdf', async () => {
+    // 1. organize-pdf
+    const { unmount: unmount1 } = render(
+      <StudioToolDrawer
+        toolId="organize-pdf"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+        locale="zh"
+      />
+    );
+    expect(screen.getByText('页面组织与排序参数')).toBeInTheDocument();
+    expect(screen.getByText('保持原序')).toBeInTheDocument();
+    expect(screen.getByText('逆序倒排')).toBeInTheDocument();
+    unmount1();
+
+    // 2. rotate-custom
+    const { unmount: unmount2 } = render(
+      <StudioToolDrawer
+        toolId="rotate-custom"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+        locale="zh"
+      />
+    );
+    expect(screen.getByText('自定义旋转参数')).toBeInTheDocument();
+    expect(screen.getByText('快捷旋转预设')).toBeInTheDocument();
+    expect(screen.getByText('顺时针 ↻')).toBeInTheDocument();
+    unmount2();
+
+    // 3. overlay-pdf
+    const { unmount: unmount3 } = render(
+      <StudioToolDrawer
+        toolId="overlay-pdf"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+        locale="zh"
+      />
+    );
+    expect(screen.getByText('覆叠与垫底图层参数')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /前景覆叠/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /背景垫底/i })).toBeInTheDocument();
+    unmount3();
+  });
+
+  it('renders rich options for ocr-pdf, add-attachments, edit-pdf, and sign-pdf', async () => {
+    // 1. ocr-pdf
+    const { unmount: unmount1 } = render(
+      <StudioToolDrawer
+        toolId="ocr-pdf"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+        locale="zh"
+      />
+    );
+    expect(screen.getByText('OCR 光学字符识别参数')).toBeInTheDocument();
+    expect(screen.getByText('主要识别语言')).toBeInTheDocument();
+    unmount1();
+
+    // 2. add-attachments
+    const { unmount: unmount2 } = render(
+      <StudioToolDrawer
+        toolId="add-attachments"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+        locale="zh"
+      />
+    );
+    expect(screen.getByText('添加附件嵌入参数')).toBeInTheDocument();
+    expect(screen.getByText('整篇文档级附件')).toBeInTheDocument();
+    unmount2();
+
+    // 3. edit-pdf
+    const { unmount: unmount3 } = render(
+      <StudioToolDrawer
+        toolId="edit-pdf"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+        locale="zh"
+      />
+    );
+    expect(screen.getByText('PDF 编辑与批注选项')).toBeInTheDocument();
+    expect(screen.getByText('文本流直接内联编辑')).toBeInTheDocument();
+    unmount3();
+
+    // 4. sign-pdf
+    const { unmount: unmount4 } = render(
+      <StudioToolDrawer
+        toolId="sign-pdf"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+        locale="zh"
+      />
+    );
+    expect(screen.getByText('电子签名配置参数')).toBeInTheDocument();
+    expect(screen.getByText('手写')).toBeInTheDocument();
+    unmount4();
+  });
+
+  it('renders English default options for compare-pdfs, view-metadata, and edit-attachments when locale is omitted', async () => {
+    // 1. compare-pdfs
+    const { unmount: unmount1 } = render(
+      <StudioToolDrawer
+        toolId="compare-pdfs"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+      />
+    );
+    expect(screen.getByText('Document Comparison Rules')).toBeInTheDocument();
+    expect(screen.getByText('Side-by-Side')).toBeInTheDocument();
+    unmount1();
+
+    // 2. view-metadata
+    const { unmount: unmount2 } = render(
+      <StudioToolDrawer
+        toolId="view-metadata"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+      />
+    );
+    expect(screen.getByText('Document Metadata & Properties')).toBeInTheDocument();
+    expect(screen.getByText('Export Report Format')).toBeInTheDocument();
+    unmount2();
+
+    // 3. edit-attachments
+    const { unmount: unmount3 } = render(
+      <StudioToolDrawer
+        toolId="edit-attachments"
+        onClose={onCloseMock}
+        onApply={onApplyMock}
+        onExport={onExportMock}
+        isApplying={false}
+      />
+    );
+    expect(screen.getByText('Manage Attachments Settings')).toBeInTheDocument();
+    expect(screen.getByText('View & Delete')).toBeInTheDocument();
+    unmount3();
+  });
 });
