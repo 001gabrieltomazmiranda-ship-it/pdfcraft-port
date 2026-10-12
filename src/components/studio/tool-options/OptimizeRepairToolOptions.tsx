@@ -27,9 +27,10 @@ export function OptimizeRepairToolOptions({
   options,
   onChange,
   totalPages = 1,
-  locale = 'zh',
+  locale = 'en',
 }: OptimizeRepairToolOptionsProps) {
-  const isZh = locale.startsWith('zh');
+  const validLocale = (locale as string) || 'en';
+  const isZh = validLocale.toLowerCase().startsWith('zh');
 
   switch (toolId) {
     case 'linearize-pdf': {
@@ -90,9 +91,9 @@ export function OptimizeRepairToolOptions({
                 onChange={(e) => onChange('dpi', parseInt(e.target.value) || 150)}
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background"
               >
-                <option value={96}>96 DPI (快速分析)</option>
-                <option value={150}>150 DPI (平衡标准)</option>
-                <option value={300}>300 DPI (高精微校正)</option>
+                <option value={96}>{isZh ? '96 DPI (快速分析)' : '96 DPI (Fast)'}</option>
+                <option value={150}>{isZh ? '150 DPI (平衡标准)' : '150 DPI (Balanced)'}</option>
+                <option value={300}>{isZh ? '300 DPI (高精微校正)' : '300 DPI (Accurate)'}</option>
               </select>
             </div>
           </div>
@@ -177,9 +178,9 @@ export function OptimizeRepairToolOptions({
                 onChange={(e) => onChange('dpi', parseInt(e.target.value) || 300)}
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background"
               >
-                <option value={150}>150 DPI (屏幕预览)</option>
-                <option value={300}>300 DPI (标准印刷转曲)</option>
-                <option value={600}>600 DPI (超高清印前)</option>
+                <option value={150}>{isZh ? '150 DPI (屏幕预览)' : '150 DPI (Preview)'}</option>
+                <option value={300}>{isZh ? '300 DPI (标准印刷转曲)' : '300 DPI (Standard)'}</option>
+                <option value={600}>{isZh ? '600 DPI (超高清印前)' : '600 DPI (High-res)'}</option>
               </select>
             </div>
             <div className="pt-2 flex items-center justify-between text-xs">

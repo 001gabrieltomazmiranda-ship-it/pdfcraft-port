@@ -25,9 +25,10 @@ export function SecurityToolOptions({
   options,
   onChange,
   totalPages = 1,
-  locale = 'zh',
+  locale = 'en',
 }: SecurityToolOptionsProps) {
-  const isZh = locale.startsWith('zh');
+  const validLocale = (locale as string) || 'en';
+  const isZh = validLocale.toLowerCase().startsWith('zh');
 
   switch (toolId) {
     case 'sanitize-pdf':

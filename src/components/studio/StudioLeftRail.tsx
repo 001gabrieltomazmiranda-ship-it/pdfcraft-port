@@ -117,7 +117,7 @@ export const StudioLeftRail: React.FC<StudioLeftRailProps> = ({
   isCollapsed,
   onToggleCollapse,
   disabled = false,
-  locale = 'zh',
+  locale = 'en',
   onQuickApply,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -127,8 +127,8 @@ export const StudioLeftRail: React.FC<StudioLeftRailProps> = ({
   const [recentToolIds, setRecentToolIds] = useState<string[]>([]);
   const [flyoutCategory, setFlyoutCategory] = useState<string | null>(null);
 
-  const validLocale = (locale as Locale) || 'zh';
-  const isZh = validLocale.startsWith('zh');
+  const validLocale = (locale as Locale) || 'en';
+  const isZh = typeof validLocale === 'string' && validLocale.toLowerCase().startsWith('zh');
 
   // Load favorites & recent from storage
   useEffect(() => {
@@ -266,7 +266,7 @@ export const StudioLeftRail: React.FC<StudioLeftRailProps> = ({
             </div>
             <div className="flex items-baseline gap-1.5 truncate">
               <span className="text-xs font-bold text-[hsl(var(--color-foreground))] tracking-tight">
-                Studio 工具箱
+                {isZh ? 'Studio 工具箱' : 'Studio Toolbox'}
               </span>
               <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-[hsl(var(--color-primary)/0.1)] text-[hsl(var(--color-primary))]">
                 {STUDIO_TOOLS.length}
@@ -279,7 +279,7 @@ export const StudioLeftRail: React.FC<StudioLeftRailProps> = ({
           className={`p-1.5 rounded-lg hover:bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] hover:text-[hsl(var(--color-foreground))] transition-colors ${
             isCollapsed ? 'mx-auto' : ''
           }`}
-          title={isCollapsed ? '展开工具栏' : '折叠工具栏'}
+          title={isCollapsed ? (isZh ? '展开工具栏' : 'Expand Sidebar') : (isZh ? '折叠工具栏' : 'Collapse Sidebar')}
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -420,7 +420,7 @@ export const StudioLeftRail: React.FC<StudioLeftRailProps> = ({
                 <button
                   onClick={toggleAllCategories}
                   className="hover:text-[hsl(var(--color-foreground))] flex items-center gap-1"
-                  title="一键展开或折叠全部分类"
+                  title={isZh ? '一键展开或折叠全部分类' : 'Toggle all categories'}
                 >
                   <ChevronsUpDown className="w-3 h-3" />
                   <span>{isZh ? '展开/收起全部' : 'Toggle All'}</span>
@@ -558,7 +558,7 @@ export const StudioLeftRail: React.FC<StudioLeftRailProps> = ({
                         type="button"
                         onClick={handleClearRecent}
                         className="text-[10px] text-[hsl(var(--color-muted-foreground))] hover:text-red-500 transition-colors"
-                        title="清空最近记录"
+                        title={isZh ? '清空最近记录' : 'Clear recent records'}
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>

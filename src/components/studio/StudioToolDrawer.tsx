@@ -46,7 +46,7 @@ import { OptimizeRepairToolOptions } from './tool-options/OptimizeRepairToolOpti
 import { ExportToolOptions } from './tool-options/ExportToolOptions';
 import { ImportAppendToolOptions } from './tool-options/ImportAppendToolOptions';
 
-export const getToolDefaultOptions = (id: string): Record<string, any> => {
+export const getToolDefaultOptions = (id: string, isZh: boolean = false): Record<string, any> => {
   switch (id) {
     case 'split-pdf':
       return { splitMode: 'ranges', rangeInput: '', splitCount: 2, evenOddMode: 'both' };
@@ -63,7 +63,7 @@ export const getToolDefaultOptions = (id: string): Record<string, any> => {
     case 'pdf-lossless-slicer':
       return { pageNumber: 1, sliceX: 0.1, sliceY: 0.1, sliceWidth: 0.8, sliceHeight: 0.8 };
     case 'passport-id-composer':
-      return { watermark: '仅供业务办理', layout: 'single-page' };
+      return { watermark: isZh ? '仅供业务办理' : 'For Official Use Only', layout: 'single-page' };
     case 'pdf-two-column-reflower':
       return { middleGapRatio: 0.5, horizontalReading: false };
     case 'pdf-spine-bookbinder':
@@ -73,7 +73,7 @@ export const getToolDefaultOptions = (id: string): Record<string, any> => {
     case 'pdf-scratchpad-canvas':
       return { padPosition: 'right', padSize: 200, gridType: 'grid' };
     case 'table-of-contents':
-      return { title: '目 录', fontSize: 12, fontFamily: 'helv', addBookmark: true };
+      return { title: isZh ? '目 录' : 'Table of Contents', fontSize: 12, fontFamily: 'helv', addBookmark: true };
     case 'bookmark':
       return { title: '', pageNumber: 1, level: 1 };
     case 'edit-metadata':
@@ -83,7 +83,7 @@ export const getToolDefaultOptions = (id: string): Record<string, any> => {
     case 'background-color':
       return { color: '#fdf6e2', opacity: 0.8, mode: 'replace-white' };
     case 'interactive-toc-generator':
-      return { title: '交互式目录', insertIndex: 1 };
+      return { title: isZh ? '交互式目录' : 'Table of Contents', insertIndex: 1 };
     case 'bookmarks-auto-generator':
       return { strategy: 'font-size', minFontSize: 14 };
     case 'batch-barcode-injector':
@@ -112,11 +112,11 @@ export const getToolDefaultOptions = (id: string): Record<string, any> => {
     case 'change-permissions':
       return { allowPrinting: true, allowCopying: false, allowModifying: false, allowAnnotating: false, ownerPassword: '' };
     case 'digital-sign-pdf':
-      return { reason: '我已仔细审核并签署此文档', location: '', contactInfo: '', enableVisible: true, sigPage: 1 };
+      return { reason: isZh ? '我已仔细审核并签署此文档' : 'I have reviewed and approved this document', location: '', contactInfo: '', enableVisible: true, sigPage: 1 };
     case 'cert-cryptor':
       return { sealPos: 'bottom-right', waxColor: 'red' };
     case 'pdf-signature-anchor-helper':
-      return { pageNumber: 1, anchorX: 0.8, anchorY: 0.8, anchorLabel: '签署人请在此处签名' };
+      return { pageNumber: 1, anchorX: 0.8, anchorY: 0.8, anchorLabel: isZh ? '签署人请在此处签名' : 'Please Sign Here' };
     case 'linearize-pdf':
       return { useObjectStreams: true };
     case 'deskew-pdf':
@@ -131,7 +131,7 @@ export const getToolDefaultOptions = (id: string): Record<string, any> => {
     case 'eink-optimizer':
       return { contrastOffset: 15, dilationAmount: 1 };
     case 'batch-watermark-remover':
-      return { watermarkText: '机密', removeImages: true };
+      return { watermarkText: isZh ? '机密' : 'CONFIDENTIAL', removeImages: true };
     case 'dead-link-debugger':
       return { action: 'remove-broken' };
     case 'handwriting-ink-contrast-booster':
@@ -196,12 +196,12 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
   onApply,
   onExport,
   isApplying,
-  locale = 'zh',
+  locale = 'en',
   availableDocuments = [],
   totalPages = 1,
 }) => {
-  const validLocale = (locale as Locale) || 'zh';
-  const isZh = validLocale.startsWith('zh');
+  const validLocale = (locale as Locale) || 'en';
+  const isZh = typeof validLocale === 'string' && validLocale.toLowerCase().startsWith('zh');
 
   // Dynamic tool-specific options (aligned across all 67+ tools)
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, any>>({});
@@ -331,7 +331,7 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
   const [rasterizeGrayscale, setRasterizeGrayscale] = useState<boolean>(false);
 
   // 20. OCR PDF (Full options: Language selection + Output Format + Enhance contrast)
-  const [ocrLanguage, setOcrLanguage] = useState<'chi_sim' | 'eng' | 'chi_tra' | 'jpn' | 'kor' | 'fra' | 'deu'>('chi_sim');
+  const [ocrLanguage, setOcrLanguage] = useState<'chi_sim' | 'eng' | 'chi_tra' | 'jpn' | 'kor' | 'fra' | 'deu'>(isZh ? 'chi_sim' : 'eng');
   const [ocrOutputFormat, setOcrOutputFormat] = useState<'searchable-pdf' | 'text' | 'markdown'>('searchable-pdf');
   const [ocrEnhanceContrast, setOcrEnhanceContrast] = useState<boolean>(true);
 
@@ -356,7 +356,7 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
   const currentToolConfig = findStudioToolConfig(toolId);
   const localizedContent = getToolContent(validLocale, normId);
 
-  const title = localizedContent?.title || currentToolConfig?.name || '配置选项';
+  const title = localizedContent?.title || currentToolConfig?.name || (isZh ? '配置选项' : 'Options');
   const description = localizedContent?.metaDescription || currentToolConfig?.description || '';
   const executionType = getToolExecutionType(normId);
 
@@ -613,7 +613,7 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
         break;
       default:
         options = {
-          ...getToolDefaultOptions(normId),
+          ...getToolDefaultOptions(normId, isZh),
           ...dynamicOptions,
         };
         break;
@@ -782,9 +782,9 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
                   </label>
                   <div className="grid grid-cols-4 gap-1.5">
                     {[
-                      { deg: 90, label: '90° 顺时针' },
-                      { deg: 180, label: '180° 倒转' },
-                      { deg: 270, label: '270° 逆时针' },
+                      { deg: 90, label: isZh ? '90° 顺时针' : '90° Clockwise' },
+                      { deg: 180, label: isZh ? '180° 倒转' : '180° Flip' },
+                      { deg: 270, label: isZh ? '270° 逆时针' : '270° Counter-cw' },
                       { deg: -90, label: '-90°' },
                     ].map((item) => (
                       <button
@@ -857,7 +857,7 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
                   type="text"
                   value={rotateCustomPages}
                   onChange={(e) => setRotateCustomPages(e.target.value)}
-                  placeholder="如: 1, 3-5, 8"
+                  placeholder={isZh ? '如: 1, 3-5, 8' : 'e.g. 1, 3-5, 8'}
                   className="w-full px-3 py-1.5 text-xs rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-background))] text-[hsl(var(--color-foreground))]"
                 />
               )}
@@ -2062,9 +2062,9 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
                     </label>
                     <div className="grid grid-cols-3 gap-1.5">
                       {[
-                        { dpi: 72, label: '72 (屏幕)' },
-                        { dpi: 150, label: '150 (标准)' },
-                        { dpi: 300, label: '300 (高清)' },
+                        { dpi: 72, label: isZh ? '72 (屏幕)' : '72 (Screen)' },
+                        { dpi: 150, label: isZh ? '150 (标准)' : '150 (Standard)' },
+                        { dpi: 300, label: isZh ? '300 (高清)' : '300 (High-res)' },
                       ].map((item) => (
                         <button
                           key={item.dpi}

@@ -63,13 +63,31 @@ describe('PDFStudio Component', () => {
     return new File(['%PDF-1.4 dummy content'], name, { type: 'application/pdf' });
   };
 
-  it('renders initial empty workspace with upload dropzone and classic grid switch link', () => {
+  it('renders initial empty workspace with upload dropzone and classic grid switch link in Chinese', () => {
     render(<PDFStudio locale="zh" />);
 
     expect(screen.getByText(/PDFCraft/i)).toBeInTheDocument();
     expect(screen.getByText(/导入 PDF 开启 Studio 工作台/i)).toBeInTheDocument();
     expect(screen.getByText(/选择 PDF 文件/i)).toBeInTheDocument();
     expect(screen.getByText(/经典网格视图/i)).toBeInTheDocument();
+  });
+
+  it('defaults to English when locale prop is omitted or unsupported', () => {
+    render(<PDFStudio />);
+
+    expect(screen.getByText(/PDFCraft/i)).toBeInTheDocument();
+    expect(screen.getByText(/Import PDF to Launch Studio Workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/Select PDF Files/i)).toBeInTheDocument();
+    expect(screen.getByText(/Back to All Tools/i)).toBeInTheDocument();
+  });
+
+  it('renders English UI when locale="en" with initialFile', () => {
+    const file = createDummyPdfFile('my-invoice.pdf');
+    render(<PDFStudio locale="en" initialFile={file} />);
+
+    expect(screen.getByText('my-invoice.pdf')).toBeInTheDocument();
+    expect(screen.getByText('Print')).toBeInTheDocument();
+    expect(screen.getByText('Save & Export')).toBeInTheDocument();
   });
 
   it('renders central viewer and toolbar controls when loaded with initialFile', () => {

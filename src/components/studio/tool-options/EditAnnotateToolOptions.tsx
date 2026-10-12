@@ -26,9 +26,10 @@ export function EditAnnotateToolOptions({
   options,
   onChange,
   totalPages = 1,
-  locale = 'zh',
+  locale = 'en',
 }: EditAnnotateToolOptionsProps) {
-  const isZh = locale.startsWith('zh');
+  const validLocale = (locale as string) || 'en';
+  const isZh = validLocale.toLowerCase().startsWith('zh');
 
   switch (toolId) {
     case 'text-color': {
@@ -263,7 +264,7 @@ export function EditAnnotateToolOptions({
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: 'qrcode', label: 'QR 二维码' },
+                { id: 'qrcode', label: isZh ? 'QR 二维码' : 'QR Code' },
                 { id: 'code128', label: 'Code 128' },
                 { id: 'ean13', label: 'EAN-13' },
               ].map((b) => (

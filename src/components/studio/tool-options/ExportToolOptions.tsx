@@ -27,9 +27,10 @@ export function ExportToolOptions({
   options,
   onChange,
   totalPages = 1,
-  locale = 'zh',
+  locale = 'en',
 }: ExportToolOptionsProps) {
-  const isZh = locale.startsWith('zh');
+  const validLocale = (locale as string) || 'en';
+  const isZh = validLocale.toLowerCase().startsWith('zh');
 
   switch (toolId) {
     case 'pdf-to-markdown': {
@@ -157,9 +158,9 @@ export function ExportToolOptions({
                   onChange={(e) => onChange('compression', e.target.value)}
                   className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
                 >
-                  <option value="packbits">PackBits (兼容性佳)</option>
-                  <option value="lzw">LZW (无损高压)</option>
-                  <option value="none">无压缩 (RAW)</option>
+                  <option value="packbits">{isZh ? 'PackBits (兼容性佳)' : 'PackBits (Compatible)'}</option>
+                  <option value="lzw">{isZh ? 'LZW (无损高压)' : 'LZW (Lossless)'}</option>
+                  <option value="none">{isZh ? '无压缩 (RAW)' : 'No Compression (RAW)'}</option>
                 </select>
               </div>
               <div>
@@ -169,9 +170,9 @@ export function ExportToolOptions({
                   onChange={(e) => onChange('dpi', parseInt(e.target.value) || 150)}
                   className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
                 >
-                  <option value={96}>96 DPI (屏幕)</option>
-                  <option value={150}>150 DPI (普通)</option>
-                  <option value={300}>300 DPI (高清)</option>
+                  <option value={96}>{isZh ? '96 DPI (屏幕)' : '96 DPI (Screen)'}</option>
+                  <option value={150}>{isZh ? '150 DPI (普通)' : '150 DPI (Normal)'}</option>
+                  <option value={300}>{isZh ? '300 DPI (高清)' : '300 DPI (High-res)'}</option>
                 </select>
               </div>
             </div>
@@ -261,9 +262,9 @@ export function ExportToolOptions({
                   onChange={(e) => onChange('format', e.target.value)}
                   className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
                 >
-                  <option value="jpg">JPG (高兼容)</option>
-                  <option value="webp">WebP (超轻量)</option>
-                  <option value="png">PNG (无损)</option>
+                  <option value="jpg">{isZh ? 'JPG (高兼容)' : 'JPG (Standard)'}</option>
+                  <option value="webp">{isZh ? 'WebP (超轻量)' : 'WebP (Compact)'}</option>
+                  <option value="png">{isZh ? 'PNG (无损)' : 'PNG (Lossless)'}</option>
                 </select>
               </div>
               <div>
@@ -379,8 +380,8 @@ export function ExportToolOptions({
               <label className="text-xs text-muted-foreground">{isZh ? '导出表格格式' : 'Export Format'}</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { id: 'xlsx', label: 'Excel 工作簿 (.xlsx)' },
-                  { id: 'csv', label: '通用 CSV 逗号分隔' },
+                  { id: 'xlsx', label: isZh ? 'Excel 工作簿 (.xlsx)' : 'Excel (.xlsx)' },
+                  { id: 'csv', label: isZh ? '通用 CSV 逗号分隔' : 'Standard CSV' },
                 ].map((f) => (
                   <button
                     key={f.id}
@@ -499,11 +500,11 @@ export function ExportToolOptions({
                 onChange={(e) => onChange('targetCurrency', e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background"
               >
-                <option value="CNY">人民币 (CNY ¥)</option>
-                <option value="USD">美元 (USD $)</option>
-                <option value="EUR">欧元 (EUR €)</option>
-                <option value="GBP">英镑 (GBP £)</option>
-                <option value="JPY">日元 (JPY ¥)</option>
+                <option value="CNY">{isZh ? '人民币 (CNY ¥)' : 'Chinese Yuan (CNY ¥)'}</option>
+                <option value="USD">{isZh ? '美元 (USD $)' : 'US Dollar (USD $)'}</option>
+                <option value="EUR">{isZh ? '欧元 (EUR €)' : 'Euro (EUR €)'}</option>
+                <option value="GBP">{isZh ? '英镑 (GBP £)' : 'British Pound (GBP £)'}</option>
+                <option value="JPY">{isZh ? '日元 (JPY ¥)' : 'Japanese Yen (JPY ¥)'}</option>
               </select>
             </div>
           </div>

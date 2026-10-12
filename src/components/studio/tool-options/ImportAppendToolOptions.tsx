@@ -21,9 +21,10 @@ export function ImportAppendToolOptions({
   toolId,
   options,
   onChange,
-  locale = 'zh',
+  locale = 'en',
 }: ImportAppendToolOptionsProps) {
-  const isZh = locale.startsWith('zh');
+  const validLocale = (locale as string) || 'en';
+  const isZh = validLocale.toLowerCase().startsWith('zh');
 
   switch (toolId) {
     case 'markdown-to-pdf': {
@@ -57,9 +58,9 @@ export function ImportAppendToolOptions({
                   onChange={(e) => onChange('theme', e.target.value)}
                   className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
                 >
-                  <option value="github">GitHub 风格</option>
-                  <option value="light">极简白 (Minimal)</option>
-                  <option value="dark">暗夜黑 (Dark)</option>
+                  <option value="github">{isZh ? 'GitHub 风格' : 'GitHub Style'}</option>
+                  <option value="light">{isZh ? '极简白 (Minimal)' : 'Minimal Light'}</option>
+                  <option value="dark">{isZh ? '暗夜黑 (Dark)' : 'Midnight Dark'}</option>
                 </select>
               </div>
             </div>
@@ -119,8 +120,8 @@ export function ImportAppendToolOptions({
                   onChange={(e) => onChange('indentSpaces', parseInt(e.target.value) || 2)}
                   className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
                 >
-                  <option value={2}>2 空格</option>
-                  <option value={4}>4 空格</option>
+                  <option value={2}>{isZh ? '2 空格' : '2 Spaces'}</option>
+                  <option value={4}>{isZh ? '4 空格' : '4 Spaces'}</option>
                 </select>
               </div>
             </div>
@@ -168,9 +169,9 @@ export function ImportAppendToolOptions({
                   onChange={(e) => onChange('lineHeight', parseFloat(e.target.value) || 1.5)}
                   className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
                 >
-                  <option value={1.2}>1.2 倍紧凑</option>
-                  <option value={1.5}>1.5 倍标准</option>
-                  <option value={1.8}>1.8 倍宽松</option>
+                  <option value={1.2}>{isZh ? '1.2 倍紧凑' : '1.2x Compact'}</option>
+                  <option value={1.5}>{isZh ? '1.5 倍标准' : '1.5x Normal'}</option>
+                  <option value={1.8}>{isZh ? '1.8 倍宽松' : '1.8x Relaxed'}</option>
                 </select>
               </div>
             </div>
@@ -269,8 +270,8 @@ export function ImportAppendToolOptions({
                 onChange={(e) => onChange('dpi', parseInt(e.target.value) || 150)}
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background"
               >
-                <option value={150}>150 DPI (标准平衡)</option>
-                <option value={300}>300 DPI (高清字迹)</option>
+                <option value={150}>{isZh ? '150 DPI (标准平衡)' : '150 DPI (Balanced)'}</option>
+                <option value={300}>{isZh ? '300 DPI (高清字迹)' : '300 DPI (Sharp)'}</option>
               </select>
             </div>
           </div>

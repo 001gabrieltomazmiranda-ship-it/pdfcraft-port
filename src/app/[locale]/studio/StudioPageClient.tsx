@@ -22,9 +22,9 @@ const PDFStudio = dynamic(
 );
 
 interface StudioPageClientProps {
-  locale: Locale;
+  locale?: Locale;
 }
 
-export default function StudioPageClient({ locale }: StudioPageClientProps) {
+export default function StudioPageClient({ locale = 'en' }: StudioPageClientProps) {
   return <PDFStudio locale={locale} />;
 }

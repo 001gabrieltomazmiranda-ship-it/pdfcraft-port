@@ -33,9 +33,10 @@ export function OrganizeToolOptions({
   options,
   onChange,
   totalPages = 1,
-  locale = 'zh',
+  locale = 'en',
 }: OrganizeToolOptionsProps) {
-  const isZh = locale.startsWith('zh');
+  const validLocale = (locale as string) || 'en';
+  const isZh = validLocale.toLowerCase().startsWith('zh');
 
   switch (toolId) {
     case 'split-pdf': {
@@ -528,7 +529,7 @@ export function OrganizeToolOptions({
     }
 
     case 'passport-id-composer': {
-      const watermark = options.watermark || '仅供业务办理';
+      const watermark = options.watermark || (isZh ? '仅供业务办理' : 'For Official Use Only');
       const layout = options.layout || 'single-page';
 
       return (
@@ -663,10 +664,10 @@ export function OrganizeToolOptions({
                   onChange={(e) => onChange('paperGsm', parseInt(e.target.value) || 80)}
                   className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
                 >
-                  <option value={70}>70g 普通道林纸</option>
-                  <option value={80}>80g 标准复印纸</option>
-                  <option value={100}>100g 加厚纸</option>
-                  <option value={120}>120g 铜版纸</option>
+                  <option value={70}>{isZh ? '70g 普通道林纸' : '70 GSM Woodfree'}</option>
+                  <option value={80}>{isZh ? '80g 标准复印纸' : '80 GSM Standard'}</option>
+                  <option value={100}>{isZh ? '100g 加厚纸' : '100 GSM Heavyweight'}</option>
+                  <option value={120}>{isZh ? '120g 铜版纸' : '120 GSM Coated'}</option>
                 </select>
               </div>
             </div>
@@ -832,9 +833,9 @@ export function OrganizeToolOptions({
                   onChange={(e) => onChange('fontFamily', e.target.value)}
                   className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background"
                 >
-                  <option value="helv">Helvetica / 微软雅黑</option>
-                  <option value="times">Times New Roman / 宋体</option>
-                  <option value="courier">Courier 等宽</option>
+                  <option value="helv">{isZh ? 'Helvetica / 微软雅黑' : 'Helvetica / Sans-Serif'}</option>
+                  <option value="times">{isZh ? 'Times New Roman / 宋体' : 'Times New Roman / Serif'}</option>
+                  <option value="courier">{isZh ? 'Courier 等宽' : 'Courier Monospace'}</option>
                 </select>
               </div>
               <div>
