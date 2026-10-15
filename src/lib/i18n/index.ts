@@ -56,4 +56,5 @@ export const LOCALE_CONFIG = {
   vi: { name: 'Vietnamese', nativeName: 'Tiếng Việt', direction: 'ltr' as const },
   ro: { name: 'Romanian', nativeName: 'Română', direction: 'ltr' as const },
   pl: { name: 'Polish', nativeName: 'Polski', direction: 'ltr' as const },
+  cs: { name: 'Czech', nativeName: 'Čeština', direction: 'ltr' as const },
 };

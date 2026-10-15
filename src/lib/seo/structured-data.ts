@@ -247,6 +247,7 @@ export function generateWebPageSchema(
     vi: 'vi-VN',
     ro: 'ro-RO',
     pl: 'pl-PL',
+    cs: 'cs-CZ',
   };
 
   return {
