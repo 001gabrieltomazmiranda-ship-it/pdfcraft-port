@@ -2543,7 +2543,10 @@
       "bold": "Tučné",
       "italic": "Kurzíva",
       "boldItalic": "Tučná kurzíva",
-      "setToCurrentPage": "Nastavit na aktuální stránku"
+      "setToCurrentPage": "Nastavit na aktuální stránku",
+      "removeAll": "Odstranit vše",
+      "removeAllConfirm": "Odstranit všechny záložky? Stále můžete uložit a stáhnout PDF bez záložek.",
+      "removedAllHint": "Všechny záložky byly odstraněny. Uložením stáhnete PDF bez záložek."
     },
     "pageNumbers": {
       "uploadLabel": "Nahrát soubor PDF",

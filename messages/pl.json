@@ -2543,7 +2543,10 @@
       "bold": "Odważne",
       "italic": "Kursywa",
       "boldItalic": "Pogrubienie i kursywa",
-      "setToCurrentPage": "Ustaw na bieżącą stronę"
+      "setToCurrentPage": "Ustaw na bieżącą stronę",
+      "removeAll": "Usuń wszystkie",
+      "removeAllConfirm": "Usunąć wszystkie zakładki? Nadal możesz zapisać plik, aby pobrać PDF bez zakładek.",
+      "removedAllHint": "Usunięto wszystkie zakładki. Zapisz, aby pobrać PDF bez zakładek."
     },
     "pageNumbers": {
       "uploadLabel": "Prześlij plik PDF",

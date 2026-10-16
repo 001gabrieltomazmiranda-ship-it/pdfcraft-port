@@ -2546,7 +2546,10 @@
       "bold": "Bold",
       "italic": "Italic",
       "boldItalic": "Bold & Italic",
-      "setToCurrentPage": "Set to current page"
+      "setToCurrentPage": "Set to current page",
+      "removeAll": "Remove all",
+      "removeAllConfirm": "Remove all bookmarks? You can still save to download a PDF with no bookmarks.",
+      "removedAllHint": "All bookmarks removed. Save to download a PDF with no bookmarks."
     },
     "pageNumbers": {
       "uploadLabel": "Upload PDF File",
