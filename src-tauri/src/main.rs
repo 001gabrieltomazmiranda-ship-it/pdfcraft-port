@@ -305,6 +305,35 @@ fn print_pdf_file(data: Vec<u8>, printer_name: Option<String>) -> Result<(), Str
     }
 }
 
+/// Port used by the loopback asset server in production builds.
+///
+/// Production builds normally serve the frontend through the `tauri://localhost`
+/// custom protocol. WKWebView does not treat custom schemes as a secure context, so
+/// `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` are ignored and
+/// `SharedArrayBuffer` stays unavailable — which is exactly what LibreOffice WASM
+/// (Emscripten pthreads) needs for the Office -> PDF tools. Serving the same assets
+/// over `http://127.0.0.1:<port>` gives the page a trustworthy origin, so the
+/// isolation headers actually take effect.
+const LOCALHOST_PORT: u16 = 9527;
+
+/// Waits until the loopback asset server accepts connections.
+///
+/// The localhost plugin binds its port on a background thread, while the window is created
+/// on the main thread. Loading the loopback URL before the bind completes makes the webview
+/// land on a connection error that it never recovers from, so we wait for the port first.
+fn wait_for_loopback(port: u16, timeout: std::time::Duration) -> bool {
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+    let deadline = std::time::Instant::now() + timeout;
+    while std::time::Instant::now() < deadline {
+        if std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(200)).is_ok()
+        {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    false
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
     {
@@ -341,9 +370,53 @@ fn main() {
         }
     }
 
+    let use_loopback = !cfg!(dev);
+
+    let mut context = tauri::generate_context!();
+
+    // `dev` is enabled for `tauri dev` (no `custom-protocol` feature) and disabled for
+    // production builds, so development keeps loading the Next.js dev server on
+    // http://localhost:3000 with HMR intact.
+    if use_loopback {
+        // The window is created in `setup` below instead, once the loopback server is
+        // actually accepting connections (see `wait_for_loopback`).
+        context.config_mut().app.windows[0].create = false;
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(
+            tauri_plugin_localhost::Builder::new(LOCALHOST_PORT)
+                .host("127.0.0.1")
+                .on_request(|_request, response| {
+                    // `app.security.headers` only applies to the custom protocol, so the
+                    // cross-origin isolation headers have to be added on the loopback
+                    // server as well.
+                    response.add_header("Cross-Origin-Opener-Policy", "same-origin");
+                    response.add_header("Cross-Origin-Embedder-Policy", "require-corp");
+                    response.add_header("Cross-Origin-Resource-Policy", "cross-origin");
+                })
+                .build(),
+        )
+        .setup(move |app| {
+            if use_loopback {
+                if !wait_for_loopback(LOCALHOST_PORT, std::time::Duration::from_secs(5)) {
+                    eprintln!(
+                        "pdfcraft: loopback asset server did not come up on port {LOCALHOST_PORT}"
+                    );
+                }
+                let mut window_config = app.config().app.windows[0].clone();
+                window_config.create = false;
+                window_config.url = tauri::WebviewUrl::External(
+                    format!("http://127.0.0.1:{LOCALHOST_PORT}/")
+                        .parse()
+                        .expect("loopback url is valid"),
+                );
+                tauri::WebviewWindowBuilder::from_config(app, &window_config)?.build()?;
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             open_files,
             save_file,
@@ -354,6 +427,6 @@ fn main() {
             get_system_printers,
             print_pdf_file
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running tauri application");
 }
