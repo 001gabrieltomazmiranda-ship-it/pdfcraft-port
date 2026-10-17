@@ -108,6 +108,45 @@ describe('BookmarkTool', () => {
     expect(screen.getByText('Chapter 1')).toBeInTheDocument();
   });
 
+  it('Shift+click checks a range and Remove selected deletes only those bookmarks', async () => {
+    await renderAndLoad();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select "Cover"' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select "Page 3"' }), { shiftKey: true });
+
+    expect(screen.getByRole('checkbox', { name: 'Select "Page 2"' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select "Contents"' })).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove selected (3)' }));
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      'Remove 3 selected bookmarks? Their child bookmarks will also be removed.'
+    );
+    expect(screen.queryByText('Cover')).not.toBeInTheDocument();
+    expect(screen.queryByText('Page 2')).not.toBeInTheDocument();
+    expect(screen.queryByText('Page 3')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Remove selected/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Bookmarks' }));
+    await waitFor(() => expect(processBookmarks).toHaveBeenCalledTimes(1));
+    expect(savedTitles()).toEqual(['Contents', 'Chapter 1']);
+  });
+
+  it('removes the children of a checked bookmark and keeps the selection when cancelled', async () => {
+    await renderAndLoad();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select "Contents"' }));
+
+    vi.mocked(window.confirm).mockReturnValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove selected (1)' }));
+    expect(screen.getByText('Chapter 1')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Select "Contents"' })).toBeChecked();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove selected (1)' }));
+    expect(screen.queryByText('Contents')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chapter 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Cover')).toBeInTheDocument();
+  });
+
   it('still offers Save after the last bookmark is deleted individually', async () => {
     await renderAndLoad();
 

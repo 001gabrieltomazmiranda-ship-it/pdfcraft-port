@@ -2546,7 +2546,11 @@
       "setToCurrentPage": "Ustaw na bieżącą stronę",
       "removeAll": "Usuń wszystkie",
       "removeAllConfirm": "Usunąć wszystkie zakładki? Nadal możesz zapisać plik, aby pobrać PDF bez zakładek.",
-      "removedAllHint": "Usunięto wszystkie zakładki. Zapisz, aby pobrać PDF bez zakładek."
+      "removedAllHint": "Usunięto wszystkie zakładki. Zapisz, aby pobrać PDF bez zakładek.",
+      "removeSelected": "Usuń zaznaczone ({count})",
+      "removeSelectedConfirm": "Usunąć {count, plural, one {# zaznaczoną zakładkę} few {# zaznaczone zakładki} many {# zaznaczonych zakładek} other {# zaznaczonej zakładki}}? Zakładki podrzędne również zostaną usunięte.",
+      "selectForRemoval": "Zaznacz „{title}”",
+      "selectHint": "Zaznacz pola wyboru, aby usunąć kilka zakładek naraz. Shift+kliknięcie zaznacza zakres."
     },
     "pageNumbers": {
       "uploadLabel": "Prześlij plik PDF",

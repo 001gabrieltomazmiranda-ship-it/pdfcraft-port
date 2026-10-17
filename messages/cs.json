@@ -2546,7 +2546,11 @@
       "setToCurrentPage": "Nastavit na aktuální stránku",
       "removeAll": "Odstranit vše",
       "removeAllConfirm": "Odstranit všechny záložky? Stále můžete uložit a stáhnout PDF bez záložek.",
-      "removedAllHint": "Všechny záložky byly odstraněny. Uložením stáhnete PDF bez záložek."
+      "removedAllHint": "Všechny záložky byly odstraněny. Uložením stáhnete PDF bez záložek.",
+      "removeSelected": "Odstranit vybrané ({count})",
+      "removeSelectedConfirm": "Odstranit {count, plural, one {# vybranou záložku} few {# vybrané záložky} many {# vybrané záložky} other {# vybraných záložek}}? Odstraní se i jejich podřízené záložky.",
+      "selectForRemoval": "Vybrat „{title}“",
+      "selectHint": "Zaškrtnutím políček odstraníte více záložek najednou. Shift+kliknutí vybere rozsah."
     },
     "pageNumbers": {
       "uploadLabel": "Nahrát soubor PDF",

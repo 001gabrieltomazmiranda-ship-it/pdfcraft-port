@@ -2549,7 +2549,11 @@
       "setToCurrentPage": "Set to current page",
       "removeAll": "Remove all",
       "removeAllConfirm": "Remove all bookmarks? You can still save to download a PDF with no bookmarks.",
-      "removedAllHint": "All bookmarks removed. Save to download a PDF with no bookmarks."
+      "removedAllHint": "All bookmarks removed. Save to download a PDF with no bookmarks.",
+      "removeSelected": "Remove selected ({count})",
+      "removeSelectedConfirm": "Remove {count, plural, one {# selected bookmark} other {# selected bookmarks}}? Their child bookmarks will also be removed.",
+      "selectForRemoval": "Select \"{title}\"",
+      "selectHint": "Tick checkboxes to remove several bookmarks at once. Shift+click selects a range."
     },
     "pageNumbers": {
       "uploadLabel": "Upload PDF File",

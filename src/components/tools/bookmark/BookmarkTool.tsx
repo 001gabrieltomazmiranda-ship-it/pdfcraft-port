@@ -61,6 +61,8 @@ export function BookmarkTool({ className = '' }: BookmarkToolProps) {
   const [bookmarksCleared, setBookmarksCleared] = useState(false);
   const [selectedBookmarkId, setSelectedBookmarkId] = useState<string | null>(null);
   const [editingBookmark, setEditingBookmark] = useState<BookmarkNode | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const lastCheckedIdRef = useRef<string | null>(null);
 
   // Processing state
   const [status, setStatus] = useState<ProcessingStatus>('idle');
@@ -329,9 +331,67 @@ export function BookmarkTool({ className = '' }: BookmarkToolProps) {
     setBookmarks([]);
     setSelectedBookmarkId(null);
     setEditingBookmark(null);
+    setCheckedIds(new Set());
     setResult(null);
     setBookmarksCleared(true);
   }, [bookmarks.length, tTools]);
+
+  const countChecked = (nodes: BookmarkNode[]): number =>
+    nodes.reduce(
+      (count, node) => count + (checkedIds.has(node.id) ? 1 : 0) + countChecked(node.children),
+      0
+    );
+  const checkedCount = countChecked(bookmarks);
+
+  // Shift+click checks or unchecks every visible bookmark between the last clicked one and this one
+  const handleToggleChecked = useCallback((id: string, extendRange: boolean) => {
+    const visibleIds: string[] = [];
+    const collectVisible = (nodes: BookmarkNode[]) => {
+      for (const node of nodes) {
+        visibleIds.push(node.id);
+        if (node.isExpanded) collectVisible(node.children);
+      }
+    };
+    collectVisible(bookmarks);
+
+    let idsToToggle = [id];
+    const anchorIndex = lastCheckedIdRef.current ? visibleIds.indexOf(lastCheckedIdRef.current) : -1;
+    const targetIndex = visibleIds.indexOf(id);
+    if (extendRange && anchorIndex !== -1 && targetIndex !== -1) {
+      const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex];
+      idsToToggle = visibleIds.slice(start, end + 1);
+    }
+
+    const shouldCheck = !checkedIds.has(id);
+    const next = new Set(checkedIds);
+    idsToToggle.forEach(toggleId => (shouldCheck ? next.add(toggleId) : next.delete(toggleId)));
+    setCheckedIds(next);
+    lastCheckedIdRef.current = id;
+  }, [bookmarks, checkedIds]);
+
+  const handleRemoveSelectedBookmarks = useCallback(() => {
+    if (checkedCount === 0) return;
+    const confirmed = confirm(
+      tTools('bookmark.removeSelectedConfirm', { count: checkedCount }) ||
+        `Remove ${checkedCount} selected bookmark(s)? Their child bookmarks will also be removed.`
+    );
+    if (!confirmed) return;
+
+    const removeChecked = (nodes: BookmarkNode[]): BookmarkNode[] =>
+      nodes
+        .filter(node => !checkedIds.has(node.id))
+        .map(node => ({ ...node, children: removeChecked(node.children) }));
+
+    const remaining = removeChecked(bookmarks);
+    setBookmarks(remaining);
+    setCheckedIds(new Set());
+    setSelectedBookmarkId(null);
+    setEditingBookmark(null);
+    setResult(null);
+    if (remaining.length === 0) {
+      setBookmarksCleared(true);
+    }
+  }, [bookmarks, checkedIds, checkedCount, tTools]);
 
   // Update bookmark
   const handleUpdateBookmark = useCallback((updated: BookmarkNode) => {
@@ -567,6 +627,15 @@ export function BookmarkTool({ className = '' }: BookmarkToolProps) {
           }`}
           onClick={() => handleBookmarkClick(bookmark)}
         >
+          <input
+            type="checkbox"
+            checked={checkedIds.has(bookmark.id)}
+            readOnly
+            onClick={(e) => { e.stopPropagation(); handleToggleChecked(bookmark.id, e.shiftKey); }}
+            className="flex-shrink-0 w-4 h-4 cursor-pointer accent-blue-600"
+            aria-label={tTools('bookmark.selectForRemoval', { title: bookmark.title }) || `Select ${bookmark.title}`}
+          />
+
           {/* Drag Handle */}
           <div className="flex-shrink-0 text-gray-400 cursor-grab active:cursor-grabbing">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -780,6 +849,17 @@ export function BookmarkTool({ className = '' }: BookmarkToolProps) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">{tTools('bookmark.bookmarksTitle') || 'Bookmarks'}</h3>
               <div className="flex flex-wrap justify-end gap-1">
+                {checkedCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveSelectedBookmarks}
+                    disabled={isProcessing}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    {tTools('bookmark.removeSelected', { count: checkedCount }) || `Remove selected (${checkedCount})`}
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -837,6 +917,9 @@ export function BookmarkTool({ className = '' }: BookmarkToolProps) {
             <div className="mt-2 space-y-1">
               <p className="text-xs text-gray-500">
                 {tTools('bookmark.hint') || 'Click a bookmark to preview its page. Use +/✎/× to add child, edit, or delete.'}
+              </p>
+              <p className="text-xs text-gray-500">
+                {tTools('bookmark.selectHint') || 'Tick checkboxes to remove several bookmarks at once. Shift+click selects a range.'}
               </p>
               <p className="text-xs text-blue-500 font-medium">
                 {tTools('bookmark.dragHint') || 'Drag and drop to reorder bookmarks.'}
