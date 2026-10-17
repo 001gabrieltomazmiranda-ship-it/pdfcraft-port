@@ -2541,7 +2541,11 @@
       "setToCurrentPage": "设为当前页",
       "removeAll": "全部移除",
       "removeAllConfirm": "要移除所有书签吗？保存后，导出的 PDF 将不包含书签。",
-      "removedAllHint": "已移除所有书签。保存即可下载不含书签的 PDF。"
+      "removedAllHint": "已移除所有书签。保存即可下载不含书签的 PDF。",
+      "removeSelected": "移除所选（{count}）",
+      "removeSelectedConfirm": "要移除所选的 {count} 个书签吗？其子书签也会一并移除。",
+      "selectForRemoval": "选择“{title}”",
+      "selectHint": "勾选复选框可一次移除多个书签。按住 Shift 点击可选择一个范围。"
     },
     "pageNumbers": {
       "uploadLabel": "上传PDF文件",

@@ -2520,7 +2520,11 @@
       "setToCurrentPage": "設為目前頁面",
       "removeAll": "全部移除",
       "removeAllConfirm": "要移除所有書籤嗎？儲存後，匯出的 PDF 將不會包含書籤。",
-      "removedAllHint": "已移除所有書籤。儲存即可下載不含書籤的 PDF。"
+      "removedAllHint": "已移除所有書籤。儲存即可下載不含書籤的 PDF。",
+      "removeSelected": "移除所選（{count}）",
+      "removeSelectedConfirm": "要移除所選的 {count} 個書籤嗎？其子書籤也會一併移除。",
+      "selectForRemoval": "選擇「{title}」",
+      "selectHint": "勾選核取方塊可一次移除多個書籤。按住 Shift 點選可選取一個範圍。"
     },
     "pageNumbers": {
       "uploadLabel": "上傳 PDF 文件",
