@@ -2517,7 +2517,10 @@
       "bold": "粗體",
       "italic": "斜體",
       "boldItalic": "粗體斜體",
-      "setToCurrentPage": "設為目前頁面"
+      "setToCurrentPage": "設為目前頁面",
+      "removeAll": "全部移除",
+      "removeAllConfirm": "要移除所有書籤嗎？儲存後，匯出的 PDF 將不會包含書籤。",
+      "removedAllHint": "已移除所有書籤。儲存即可下載不含書籤的 PDF。"
     },
     "pageNumbers": {
       "uploadLabel": "上傳 PDF 文件",

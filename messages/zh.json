@@ -2538,7 +2538,10 @@
       "bold": "加粗",
       "italic": "倾斜",
       "boldItalic": "加粗并倾斜",
-      "setToCurrentPage": "设为当前页"
+      "setToCurrentPage": "设为当前页",
+      "removeAll": "全部移除",
+      "removeAllConfirm": "要移除所有书签吗？保存后，导出的 PDF 将不包含书签。",
+      "removedAllHint": "已移除所有书签。保存即可下载不含书签的 PDF。"
     },
     "pageNumbers": {
       "uploadLabel": "上传PDF文件",
