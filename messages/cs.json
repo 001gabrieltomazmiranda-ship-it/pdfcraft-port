@@ -1635,9 +1635,11 @@
       "uploadLabel": "Nahrát soubor PDF",
       "uploadDescription": "Přetáhněte soubor PDF sem nebo klikněte pro procházení.",
       "selectTitle": "Vyberte stránky k extrakci",
-      "selectHint": "Kliknutím na stránky je vyberete, nebo zadejte čísla/rozsahy stránek výše.",
+      "selectHint": "Kliknutím na stránky je vyberete, nebo zadejte čísla, rozsahy, odd či even.",
       "pageRange": "Rozsah stránek",
-      "pageRangePlaceholder": "např. 1-5, 8, 10-12",
+      "pageRangePlaceholder": "např. 1-5, 8, 10-12, odd",
+      "selectOdd": "Liché",
+      "selectEven": "Sudé",
       "extractButton": "Extrahovat stránky",
       "successMessage": "Stránky byly úspěšně extrahovány! Kliknutím na tlačítko stažení soubor uložíte."
     },

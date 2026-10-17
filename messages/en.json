@@ -1638,9 +1638,11 @@
       "uploadLabel": "Upload PDF File",
       "uploadDescription": "Drag and drop a PDF file here, or click to browse.",
       "selectTitle": "Select Pages to Extract",
-      "selectHint": "Click pages to select them, or enter page numbers/ranges above.",
+      "selectHint": "Click pages to select them, or enter page numbers, ranges, odd, or even.",
       "pageRange": "Page Range",
-      "pageRangePlaceholder": "e.g., 1-5, 8, 10-12",
+      "pageRangePlaceholder": "e.g., 1-5, 8, 10-12, odd",
+      "selectOdd": "Odd",
+      "selectEven": "Even",
       "extractButton": "Extract Pages",
       "successMessage": "Pages extracted successfully! Click the download button to save your file."
     },

@@ -1635,9 +1635,11 @@
       "uploadLabel": "Prześlij plik PDF",
       "uploadDescription": "Przeciągnij i upuść tutaj plik PDF lub kliknij, aby przeglądać.",
       "selectTitle": "Wybierz strony do wyodrębnienia",
-      "selectHint": "Kliknij strony, aby je wybrać, lub wprowadź numery/zakresy stron powyżej.",
+      "selectHint": "Kliknij strony, aby je wybrać, albo wpisz numery, zakresy, odd lub even.",
       "pageRange": "Zakres stron",
-      "pageRangePlaceholder": "np. 1-5, 8, 10-12",
+      "pageRangePlaceholder": "np. 1-5, 8, 10-12, odd",
+      "selectOdd": "Nieparzyste",
+      "selectEven": "Parzyste",
       "extractButton": "Wyodrębnij strony",
       "successMessage": "Strony wyodrębnione pomyślnie! Kliknij przycisk pobierania, aby zapisać plik."
     },

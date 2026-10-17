@@ -495,8 +495,16 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
         break;
       }
       case 'extract-pages': {
-        const pages = parsePageNumbers(extractPagesInput);
-        options = { pages: pages.length > 0 ? pages : [1] };
+        const usesParity = extractPagesInput.split(',').some((part) => {
+          const token = part.trim().toLowerCase();
+          return token === 'odd' || token === 'even';
+        });
+        if (usesParity) {
+          options = { pageSelection: extractPagesInput, pages: [] };
+        } else {
+          const pages = parsePageNumbers(extractPagesInput);
+          options = { pages: pages.length > 0 ? pages : [1] };
+        }
         break;
       }
       case 'add-blank-page':
@@ -1279,8 +1287,8 @@ export const StudioToolDrawer: React.FC<StudioToolDrawerProps> = ({
                 {[
                   { label: isZh ? '前 3 页' : '1-3', val: '1-3' },
                   { label: isZh ? '仅第 1 页' : 'Page 1', val: '1' },
-                  { label: isZh ? '奇数页' : 'Odd', val: '1, 3, 5, 7, 9' },
-                  { label: isZh ? '偶数页' : 'Even', val: '2, 4, 6, 8, 10' },
+                  { label: isZh ? '奇数页' : 'Odd', val: 'odd' },
+                  { label: isZh ? '偶数页' : 'Even', val: 'even' },
                 ].map((item) => (
                   <button
                     key={item.label}
