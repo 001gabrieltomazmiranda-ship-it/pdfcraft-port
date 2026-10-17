@@ -1638,9 +1638,11 @@
       "uploadLabel": "上传PDF文件",
       "uploadDescription": "拖放PDF文件到此处，或点击浏览。",
       "selectTitle": "选择要提取的页面",
-      "selectHint": "点击页面选择，或在上方输入页码/范围。",
+      "selectHint": "点击页面选择，或在上方输入页码、范围、odd 或 even。",
       "pageRange": "页面范围",
-      "pageRangePlaceholder": "例如：1-5, 8, 10-12",
+      "pageRangePlaceholder": "例如：1-5, 8, 10-12, odd, even",
+      "selectOdd": "奇数页",
+      "selectEven": "偶数页",
       "extractButton": "提取页面",
       "successMessage": "页面提取成功！点击下载按钮保存文件。"
     },
