@@ -86,3 +86,30 @@ html[data-mobile] #main-content { padding-top: 12px !important; }
 .r-tool[aria-pressed="true"] { background: rgba(168,85,247,.22); color: #fff; }
 .r-toast { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); background: #2a2140; color: #f4f1fb;
   padding: 10px 16px; border-radius: 18px; font-size: 14px; }
+
+.ms-back { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; animation: ms-fade .18s ease-out; }
+.ms-sheet { width: 100%; max-height: 82vh; display: flex; flex-direction: column; background: #17121f; border-radius: 24px 24px 0 0;
+  border-top: 1px solid rgba(168,85,247,.35); padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); color: #f4f1fb; animation: ms-up .22s ease-out; }
+.ms-handle { align-self: center; width: 56px; height: 24px; background: none; border: 0; padding: 0; position: relative; flex: none; }
+.ms-handle::after { content: ''; position: absolute; left: 6px; right: 6px; top: 10px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.3); }
+.ms-title { font-size: 20px; font-weight: 700; margin: 4px 0 12px; }
+.ms-search { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 22px; margin-bottom: 4px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #a9a2bd; flex: none; }
+.ms-search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: #f4f1fb; font-size: 15px; }
+.ms-scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.ms-h3 { font-size: 13px; font-weight: 700; color: #a9a2bd; margin: 18px 0 10px; text-transform: uppercase; letter-spacing: .04em; }
+.ms-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 6px; }
+.ms-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; color: #f4f1fb; min-height: 92px; }
+.ms-ic { width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+  background: rgba(168,85,247,.2); color: #c9a8ff; }
+.ms-ic svg { width: 30px; height: 30px; }
+.ms-ic[data-c="organize-manage"] { background: rgba(52,168,100,.22); color: #6fdc9a; }
+.ms-ic[data-c="edit-annotate"] { background: rgba(168,85,247,.22); color: #c9a8ff; }
+.ms-ic[data-c="convert-to-pdf"] { background: rgba(229,72,77,.22); color: #ff8f93; }
+.ms-ic[data-c="convert-from-pdf"] { background: rgba(32,178,170,.22); color: #6fe0d8; }
+.ms-ic[data-c="optimize-repair"] { background: rgba(59,130,246,.22); color: #8fb8ff; }
+.ms-ic[data-c="secure-pdf"] { background: rgba(99,102,241,.22); color: #a5a8ff; }
+.ms-lb { font-size: 12px; line-height: 1.2; text-align: center; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; }
+@keyframes ms-up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ms-fade { from { opacity: 0; } to { opacity: 1; } }

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Search, Download, Type, Highlighter, Pencil, PenLine, LayoutGrid, ChevronUp, ChevronDown } from 'lucide-react';
 import { withBasePath } from '@/lib/utils/path';
+import MoreToolsSheet from './MoreToolsSheet';
+import { installPinchZoom } from './pinchZoom';
 import { listRecent, loadBlob, saveBytes } from '@/lib/mobile-files';
 
 interface ViewerApp {
@@ -14,9 +16,9 @@ type ViewerWin = Window & { PDFViewerApplication?: ViewerApp };
 
 const HIDE_TOOLBAR_CSS =
   '#toolbarContainer,#sidebarContainer,#secondaryToolbar{display:none !important}' +
-  '#viewerContainer{inset:0 !important}';
+  '#viewerContainer{inset:0 !important;overscroll-behavior:contain}';
 
-export default function MobileReader({ locale }: { locale: string }) {
+export default function MobileReader({ locale, titles }: { locale: string; titles: Record<string, string> }) {
   const router = useRouter();
   const pt = locale.startsWith('pt');
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -28,6 +30,7 @@ export default function MobileReader({ locale }: { locale: string }) {
   const [busy, setBusy] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +77,8 @@ export default function MobileReader({ locale }: { locale: string }) {
     const style = doc.createElement('style');
     style.textContent = HIDE_TOOLBAR_CSS;
     doc.head.appendChild(style);
+    const win = iframeRef.current?.contentWindow;
+    if (win) installPinchZoom(win, doc);
   };
 
   const setEditor = (m: number) => {
@@ -178,12 +183,13 @@ export default function MobileReader({ locale }: { locale: string }) {
           <PenLine aria-hidden="true" />
           {pt ? 'Assinar' : 'Sign'}
         </button>
-        <button className="r-tool" onClick={() => router.push('/' + locale + '/tools/')}>
+        <button className="r-tool" onClick={() => setMoreOpen(true)}>
           <LayoutGrid aria-hidden="true" />
           {pt ? 'Mais' : 'More'}
         </button>
       </nav>
       {toast && <div className="r-toast" role="status">{toast}</div>}
+      {moreOpen && <MoreToolsSheet locale={locale} titles={titles} onClose={() => setMoreOpen(false)} />}
     </div>
   );
 }
