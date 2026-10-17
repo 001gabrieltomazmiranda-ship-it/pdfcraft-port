@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/lib/i18n/config';
 import { generateHomeMetadata } from '@/lib/seo';
-import HomePageClient from './HomePageClient';
+import { HomeSwitch } from '@/components/mobile/MobileApp';
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -46,5 +46,5 @@ export default async function HomePage({ params }: HomePageProps) {
     return acc;
   }, {} as Record<string, { title: string; description: string }>);
 
-  return <HomePageClient locale={locale as Locale} localizedToolContent={localizedToolContent} />;
+  return <HomeSwitch locale={locale as Locale} localizedToolContent={localizedToolContent} />;
 }
