@@ -10,6 +10,8 @@
     "core:default",
     "dialog:default",
     "fs:default",
+    "fs:allow-write-file",
+    "fs:allow-read-file",
     "allow-open-files",
     "allow-save-file",
     "allow-read-file",

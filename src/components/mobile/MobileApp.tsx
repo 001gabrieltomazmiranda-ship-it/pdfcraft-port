@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Home, LayoutGrid, Pencil, GitBranch, Search } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Home, LayoutGrid, Pencil, GitBranch, Search, Plus, FileText, Star } from 'lucide-react';
 import { getAllTools, getToolBySlug } from '@/config/tools';
 import { getToolIcon } from '@/config/icons';
 import { isTauri } from '@/lib/tauri-bridge';
 import type { ToolCategory } from '@/types/tool';
 import HomePageClient from '@/app/[locale]/HomePageClient';
 import type { Locale } from '@/lib/i18n/config';
+import { addRecent, listRecent, toggleFav, type RecentDoc } from '@/lib/mobile-files';
 import './mobile.css';
 
 type Content = Record<string, { title: string; description: string }>;
@@ -92,10 +93,43 @@ function Tile({ slug, locale, content }: { slug: string; locale: string; content
   );
 }
 
+
+function fmtSize(n: number): string {
+  return n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+}
+
+function fmtTime(t: number, locale: string): string {
+  const d = new Date(t);
+  const same = d.toDateString() === new Date().toDateString();
+  return same
+    ? d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+}
+
 function MobileHome({ locale, content }: { locale: string; content: Content }) {
   const pt = PT(locale);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [tab, setTab] = useState<'recent' | 'fav'>('recent');
+  const [docs, setDocs] = useState<RecentDoc[]>([]);
+  useEffect(() => {
+    setDocs(listRecent());
+  }, []);
+  const openDoc = (id: string) => router.push('/' + locale + '/reader/?id=' + id);
+  const onPick = async (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const doc = await addRecent(f);
+      openDoc(doc.id);
+    } catch {
+      window.alert(pt ? 'Não foi possível abrir o arquivo.' : 'Could not open the file.');
+    }
+  };
+  const shownDocs = tab === 'fav' ? docs.filter((d) => d.fav) : docs;
   const all = getAllTools();
   const found = q.trim()
     ? all.filter((t) => (content[t.id]?.title || t.id).toLowerCase().includes(q.trim().toLowerCase()))
@@ -123,6 +157,45 @@ function MobileHome({ locale, content }: { locale: string; content: Content }) {
           <div className="m-grid">
             {quick.map((s) => <Tile key={s} slug={s} locale={locale} content={content} />)}
           </div>
+          <div className="m-tabs" role="tablist">
+            <button className="m-tab" role="tab" aria-selected={tab === 'recent'} onClick={() => setTab('recent')}>
+              {pt ? 'Recente' : 'Recent'}
+            </button>
+            <button className="m-tab" role="tab" aria-selected={tab === 'fav'} onClick={() => setTab('fav')}>
+              {pt ? 'Favoritos' : 'Favorites'}
+            </button>
+            <button className="m-tab" role="tab" aria-selected={false} onClick={() => fileRef.current?.click()}>
+              {pt ? 'No dispositivo' : 'On device'}
+            </button>
+          </div>
+          {shownDocs.length === 0 ? (
+            <p className="m-empty">
+              {pt ? 'Nenhum arquivo ainda. Toque no + para abrir um PDF.' : 'No files yet. Tap + to open a PDF.'}
+            </p>
+          ) : (
+            <ul className="m-docs">
+              {shownDocs.map((d) => (
+                <li key={d.id} className="m-doc">
+                  <button className="m-doc-main" onClick={() => openDoc(d.id)}>
+                    <span className="m-doc-ic"><FileText size={22} aria-hidden="true" /></span>
+                    <span>
+                      <span className="m-doc-name" style={{ display: 'block' }}>{d.name}</span>
+                      <span className="m-doc-meta">PDF · {fmtTime(d.time, locale)} · {fmtSize(d.size)}</span>
+                    </span>
+                  </button>
+                  <button
+                    className="m-doc-btn"
+                    aria-label={pt ? 'Favoritar' : 'Favorite'}
+                    aria-pressed={d.fav}
+                    onClick={() => setDocs(toggleFav(d.id))}
+                  >
+                    <Star size={22} fill={d.fav ? 'currentColor' : 'none'} aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <h2 className="m-h2">{pt ? 'Ferramentas' : 'Tools'}</h2>
           {CATS.map((c) => {
             const list = all.filter((t) => t.category === c.id);
             const shown = open[c.id] ? list : list.slice(0, 8);
@@ -144,6 +217,10 @@ function MobileHome({ locale, content }: { locale: string; content: Content }) {
           })}
         </>
       )}
+      <input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={onPick} />
+      <button className="m-fab" aria-label={pt ? 'Abrir PDF' : 'Open PDF'} onClick={() => fileRef.current?.click()}>
+        <Plus aria-hidden="true" />
+      </button>
     </div>
   );
 }
