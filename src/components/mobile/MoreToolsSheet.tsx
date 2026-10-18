@@ -21,10 +21,14 @@ const GROUPS: { id: ToolCategory; pt: string; en: string }[] = [
 export default function MoreToolsSheet({
   locale,
   titles,
+  inApp,
+  onPick,
   onClose,
 }: {
   locale: string;
   titles: Record<string, string>;
+  inApp: string[];
+  onPick: (id: string) => void;
   onClose: () => void;
 }) {
   const pt = locale.startsWith('pt');
@@ -36,15 +40,29 @@ export default function MoreToolsSheet({
 
   const tile = (t: ToolItem) => {
     const Icon = getToolIcon(t.icon);
-    return (
-      <Link key={t.id} href={'/' + locale + '/tools/' + t.slug + '/'} className="ms-tile">
+    const inner = (
+      <>
         <span className="ms-ic" data-c={t.category}>
           <Icon aria-hidden="true" />
         </span>
         <span className="ms-lb">{title(t.id)}</span>
+      </>
+    );
+    if (inApp.includes(t.id)) {
+      return (
+        <button key={t.id} className="ms-tile" onClick={() => onPick(t.id)}>
+          {inner}
+        </button>
+      );
+    }
+    return (
+      <Link key={t.id} href={'/' + locale + '/tools/' + t.slug + '/'} className="ms-tile">
+        {inner}
       </Link>
     );
   };
+
+  const here = all.filter((t) => inApp.includes(t.id));
 
   return (
     <div className="ms-back" onClick={onClose}>
@@ -70,16 +88,24 @@ export default function MoreToolsSheet({
           {found ? (
             <div className="ms-grid">{found.map(tile)}</div>
           ) : (
-            GROUPS.map((g) => {
-              const items = all.filter((t) => t.category === g.id);
-              if (items.length === 0) return null;
-              return (
-                <section key={g.id}>
-                  <h3 className="ms-h3">{pt ? g.pt : g.en}</h3>
-                  <div className="ms-grid">{items.map(tile)}</div>
+            <>
+              {here.length > 0 && (
+                <section>
+                  <h3 className="ms-h3">{pt ? 'Neste documento' : 'On this document'}</h3>
+                  <div className="ms-grid">{here.map(tile)}</div>
                 </section>
-              );
-            })
+              )}
+              {GROUPS.map((g) => {
+                const items = all.filter((t) => t.category === g.id && !inApp.includes(t.id));
+                if (items.length === 0) return null;
+                return (
+                  <section key={g.id}>
+                    <h3 className="ms-h3">{pt ? g.pt : g.en}</h3>
+                    <div className="ms-grid">{items.map(tile)}</div>
+                  </section>
+                );
+              })}
+            </>
           )}
         </div>
       </div>

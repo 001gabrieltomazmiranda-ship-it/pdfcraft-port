@@ -2,15 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Search, Download, Type, Highlighter, Pencil, PenLine, LayoutGrid, ChevronUp, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Search, Download, Type, Highlighter, Pencil, PenLine, LayoutGrid, ChevronUp, ChevronDown, Undo2 } from 'lucide-react';
 import { withBasePath } from '@/lib/utils/path';
 import MoreToolsSheet from './MoreToolsSheet';
+import ToolPanel, { IN_APP_TOOLS } from './ToolPanel';
 import { installPinchZoom } from './pinchZoom';
 import { listRecent, loadBlob, saveBytes } from '@/lib/mobile-files';
 
 interface ViewerApp {
   eventBus: { dispatch: (name: string, data: Record<string, unknown>) => void };
-  pdfDocument?: { saveDocument: () => Promise<Uint8Array> };
+  pdfDocument?: { saveDocument: () => Promise<Uint8Array>; numPages: number };
+  pdfViewer?: { currentPageNumber: number };
 }
 type ViewerWin = Window & { PDFViewerApplication?: ViewerApp };
 
@@ -22,8 +24,10 @@ export default function MobileReader({ locale, titles }: { locale: string; title
   const router = useRouter();
   const pt = locale.startsWith('pt');
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const urlRef = useRef<string | null>(null);
   const [name, setName] = useState('');
+  const [blob, setBlob] = useState<Blob | null>(null);
+  const [history, setHistory] = useState<Blob[]>([]);
+  const [panel, setPanel] = useState<{ id: string; numPages: number; currentPage: number } | null>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState(0);
@@ -41,25 +45,30 @@ export default function MobileReader({ locale, titles }: { locale: string; title
     }
     const doc = listRecent().find((d) => d.id === id);
     loadBlob(id)
-      .then((blob) => {
+      .then((b) => {
         if (cancelled) return;
-        if (!blob) {
+        if (!b) {
           setError(pt ? 'Arquivo não encontrado.' : 'File not found.');
           return;
         }
-        const url = URL.createObjectURL(blob);
-        urlRef.current = url;
         setName(doc?.name || 'documento.pdf');
-        setSrc(withBasePath('/pdfjs-viewer/viewer.html?file=' + encodeURIComponent(url)));
+        setBlob(b);
       })
       .catch(() => {
         if (!cancelled) setError(pt ? 'Erro ao abrir o arquivo.' : 'Could not open the file.');
       });
     return () => {
       cancelled = true;
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
     };
   }, [pt]);
+
+  useEffect(() => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    setSrc(withBasePath('/pdfjs-viewer/viewer.html?file=' + encodeURIComponent(url)));
+    setMode(0);
+    return () => URL.revokeObjectURL(url);
+  }, [blob]);
 
   const getApp = (): ViewerApp | undefined => {
     const win = iframeRef.current?.contentWindow as ViewerWin | null | undefined;
@@ -69,6 +78,33 @@ export default function MobileReader({ locale, titles }: { locale: string; title
   const flash = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
+  };
+
+
+  const getBytes = async (): Promise<Uint8Array> => {
+    const app = getApp();
+    if (app?.pdfDocument) return app.pdfDocument.saveDocument();
+    return new Uint8Array(await (blob as Blob).arrayBuffer());
+  };
+
+  const openPanel = (id: string) => {
+    const app = getApp();
+    setMoreOpen(false);
+    setPanel({ id, numPages: app?.pdfDocument?.numPages ?? 1, currentPage: app?.pdfViewer?.currentPageNumber ?? 1 });
+  };
+
+  const onResult = (next: Blob, before: Uint8Array) => {
+    setHistory((h) => [...h, new Blob([before as unknown as BlobPart], { type: 'application/pdf' })]);
+    setBlob(next);
+    setPanel(null);
+    flash(pt ? 'Alteração aplicada.' : 'Change applied.');
+  };
+
+  const undo = () => {
+    const prev = history[history.length - 1];
+    if (!prev) return;
+    setHistory((h) => h.slice(0, -1));
+    setBlob(prev);
   };
 
   const onLoad = () => {
@@ -133,6 +169,11 @@ export default function MobileReader({ locale, titles }: { locale: string; title
           <ArrowLeft />
         </button>
         <div className="r-title">{name}</div>
+        {history.length > 0 && (
+          <button className="r-btn" aria-label={pt ? 'Desfazer' : 'Undo'} onClick={undo}>
+            <Undo2 />
+          </button>
+        )}
         <button className="r-btn" aria-label={pt ? 'Buscar' : 'Search'} onClick={() => setSearchOpen(!searchOpen)}>
           <Search />
         </button>
@@ -189,7 +230,19 @@ export default function MobileReader({ locale, titles }: { locale: string; title
         </button>
       </nav>
       {toast && <div className="r-toast" role="status">{toast}</div>}
-      {moreOpen && <MoreToolsSheet locale={locale} titles={titles} onClose={() => setMoreOpen(false)} />}
+      {moreOpen && (
+        <MoreToolsSheet locale={locale} titles={titles} inApp={IN_APP_TOOLS} onPick={openPanel} onClose={() => setMoreOpen(false)} />
+      )}
+      {panel && (
+        <ToolPanel
+          key={panel.id}
+          toolId={panel.id}
+          title={titles[panel.id] || panel.id}
+          locale={locale}
+          env={{ numPages: panel.numPages, currentPage: panel.currentPage, fileName: name || 'documento.pdf', getBytes, onResult }}
+          onClose={() => setPanel(null)}
+        />
+      )}
     </div>
   );
 }

@@ -113,3 +113,19 @@ html[data-mobile] #main-content { padding-top: 12px !important; }
   -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; }
 @keyframes ms-up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes ms-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.tp-sheet { max-height: 70vh; }
+.tp-body { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; overflow-y: auto; }
+.tp-seg { display: flex; gap: 8px; }
+.tp-seg button { flex: 1; min-height: 48px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05);
+  color: #f4f1fb; font-size: 14px; font-weight: 600; }
+.tp-seg button[aria-pressed="true"] { background: rgba(146,68,245,.35); border-color: rgba(168,85,247,.8); color: #fff; }
+.tp-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #a9a2bd; }
+.tp-field input { min-height: 48px; border-radius: 12px; border: 1px solid rgba(168,85,247,.5); background: rgba(255,255,255,.05);
+  color: #f4f1fb; font-size: 16px; padding: 0 14px; }
+.tp-field input[type="file"] { padding: 10px 12px; font-size: 14px; }
+.tp-field small { font-weight: 400; color: #a9a2bd; }
+.tp-err { color: #ff8f93; font-size: 14px; margin: 0 0 10px; }
+.tp-go { min-height: 52px; border: 0; border-radius: 26px; background: linear-gradient(135deg, #7a35e8, #9244f5); color: #fff;
+  font-size: 16px; font-weight: 700; flex: none; }
+.tp-go:disabled { opacity: .6; }
