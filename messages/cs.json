@@ -1635,9 +1635,11 @@
       "uploadLabel": "Nahrát soubor PDF",
       "uploadDescription": "Přetáhněte soubor PDF sem nebo klikněte pro procházení.",
       "selectTitle": "Vyberte stránky k extrakci",
-      "selectHint": "Kliknutím na stránky je vyberete, nebo zadejte čísla/rozsahy stránek výše.",
+      "selectHint": "Kliknutím na stránky je vyberete, nebo zadejte čísla, rozsahy, odd či even.",
       "pageRange": "Rozsah stránek",
-      "pageRangePlaceholder": "např. 1-5, 8, 10-12",
+      "pageRangePlaceholder": "např. 1-5, 8, 10-12, odd",
+      "selectOdd": "Liché",
+      "selectEven": "Sudé",
       "extractButton": "Extrahovat stránky",
       "successMessage": "Stránky byly úspěšně extrahovány! Kliknutím na tlačítko stažení soubor uložíte."
     },
@@ -2543,7 +2545,14 @@
       "bold": "Tučné",
       "italic": "Kurzíva",
       "boldItalic": "Tučná kurzíva",
-      "setToCurrentPage": "Nastavit na aktuální stránku"
+      "setToCurrentPage": "Nastavit na aktuální stránku",
+      "removeAll": "Odstranit vše",
+      "removeAllConfirm": "Odstranit všechny záložky? Stále můžete uložit a stáhnout PDF bez záložek.",
+      "removedAllHint": "Všechny záložky byly odstraněny. Uložením stáhnete PDF bez záložek.",
+      "removeSelected": "Odstranit vybrané ({count})",
+      "removeSelectedConfirm": "Odstranit {count, plural, one {# vybranou záložku} few {# vybrané záložky} many {# vybrané záložky} other {# vybraných záložek}}? Odstraní se i jejich podřízené záložky.",
+      "selectForRemoval": "Vybrat „{title}“",
+      "selectHint": "Zaškrtnutím políček odstraníte více záložek najednou. Shift+kliknutí vybere rozsah."
     },
     "pageNumbers": {
       "uploadLabel": "Nahrát soubor PDF",
