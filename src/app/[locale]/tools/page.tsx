@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/lib/i18n/config';
 import { generateToolsListMetadata } from '@/lib/seo';
-import ToolsPageClient from './ToolsPageClient';
+import { ToolsSwitch } from '@/components/mobile/MobileApp';
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -63,7 +63,7 @@ export default async function ToolsPage({ params }: ToolsPageProps) {
   // because static export doesn't support server-side searchParams
   return (
     <Suspense fallback={<ToolsPageFallback />}>
-      <ToolsPageClient locale={locale as Locale} localizedToolContent={localizedToolContent} />
+      <ToolsSwitch locale={locale as Locale} localizedToolContent={localizedToolContent} />
     </Suspense>
   );
 }

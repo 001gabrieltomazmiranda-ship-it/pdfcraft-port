@@ -187,7 +187,7 @@ export function TimestampPDFTool({ className = '' }: TimestampPDFToolProps) {
                 {file.name}
               </p>
               <p className="text-xs text-[hsl(var(--color-muted-foreground))]">
-                {totalPages > 0 ? t('comparePdfs.pageNumber', { page: totalPages }) : t('status.loading')} • {(file.size / (1024 * 1024)).toFixed(2)} MB
+                {totalPages > 0 ? t('comparePdfs.totalAligned', { count: totalPages }) : t('status.loading')} • {(file.size / (1024 * 1024)).toFixed(2)} MB
               </p>
             </div>
           </div>

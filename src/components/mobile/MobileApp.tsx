@@ -1,16 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, LayoutGrid, Pencil, GitBranch, Search, Plus, FileText, Star } from 'lucide-react';
-import { getAllTools, getToolBySlug } from '@/config/tools';
+import { Home, LayoutGrid, Search, Plus, FileText, Star } from 'lucide-react';
+import { getAllTools, getToolById } from '@/config/tools';
 import { getToolIcon } from '@/config/icons';
 import { isTauri } from '@/lib/tauri-bridge';
 import type { ToolCategory } from '@/types/tool';
 import HomePageClient from '@/app/[locale]/HomePageClient';
+import ToolsPageClient from '@/app/[locale]/tools/ToolsPageClient';
+import MobileTools from './MobileTools';
+import { useToolLauncher } from './ToolLauncher';
 import type { Locale } from '@/lib/i18n/config';
-import { addRecent, listRecent, toggleFav, type RecentDoc } from '@/lib/mobile-files';
+import { listRecent, toggleFav, type RecentDoc } from '@/lib/mobile-files';
 import './mobile.css';
 
 type Content = Record<string, { title: string; description: string }>;
@@ -47,8 +50,6 @@ export function MobileShell({ locale, children }: { locale: string; children: Re
   const items = [
     { href: `/${locale}`, label: pt ? 'Início' : 'Home', Icon: Home, exact: true },
     { href: `/${locale}/tools`, label: pt ? 'Ferramentas' : 'Tools', Icon: LayoutGrid },
-    { href: `/${locale}/studio`, label: pt ? 'Estúdio' : 'Studio', Icon: Pencil },
-    { href: `/${locale}/workflow`, label: pt ? 'Fluxos' : 'Flows', Icon: GitBranch },
   ];
   const norm = path.replace(/\/$/, '');
   return (
@@ -80,16 +81,16 @@ const CATS: { id: ToolCategory; pt: string; en: string }[] = [
   { id: 'secure-pdf', pt: 'Proteger', en: 'Secure' },
 ];
 
-function Tile({ slug, locale, content }: { slug: string; locale: string; content: Content }) {
-  const tool = getToolBySlug(slug);
+function Tile({ id, content, onPick }: { id: string; content: Content; onPick: (id: string) => void }) {
+  const tool = getToolById(id);
   if (!tool) return null;
   const Icon = getToolIcon(tool.icon);
   const name = content[tool.id]?.title || tool.id.replace(/-/g, ' ');
   return (
-    <Link href={`/${locale}/tools/${tool.slug}`} className="m-tile">
+    <button type="button" className="m-tile" onClick={() => onPick(tool.id)}>
       <Icon aria-hidden="true" />
       <span>{name}</span>
-    </Link>
+    </button>
   );
 }
 
@@ -111,24 +112,14 @@ function MobileHome({ locale, content }: { locale: string; content: Content }) {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const titles = Object.fromEntries(Object.entries(content).map(([id, c]) => [id, c.title]));
+  const { launch, openPicker, elements } = useToolLauncher(locale, titles);
   const [tab, setTab] = useState<'recent' | 'fav'>('recent');
   const [docs, setDocs] = useState<RecentDoc[]>([]);
   useEffect(() => {
     setDocs(listRecent());
   }, []);
   const openDoc = (id: string) => router.push('/' + locale + '/reader/?id=' + id);
-  const onPick = async (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    if (!f) return;
-    try {
-      const doc = await addRecent(f);
-      openDoc(doc.id);
-    } catch {
-      window.alert(pt ? 'Não foi possível abrir o arquivo.' : 'Could not open the file.');
-    }
-  };
   const shownDocs = tab === 'fav' ? docs.filter((d) => d.fav) : docs;
   const all = getAllTools();
   const found = q.trim()
@@ -149,13 +140,13 @@ function MobileHome({ locale, content }: { locale: string; content: Content }) {
       </label>
       {q.trim() ? (
         <div className="m-grid" style={{ marginTop: 16 }}>
-          {found.map((t) => <Tile key={t.id} slug={t.slug} locale={locale} content={content} />)}
+          {found.map((t) => <Tile key={t.id} id={t.id} content={content} onPick={launch} />)}
         </div>
       ) : (
         <>
           <h2 className="m-h2">{pt ? 'Ações rápidas' : 'Quick actions'}</h2>
           <div className="m-grid">
-            {quick.map((s) => <Tile key={s} slug={s} locale={locale} content={content} />)}
+            {quick.map((id) => <Tile key={id} id={id} content={content} onPick={launch} />)}
           </div>
           <div className="m-tabs" role="tablist">
             <button className="m-tab" role="tab" aria-selected={tab === 'recent'} onClick={() => setTab('recent')}>
@@ -164,7 +155,7 @@ function MobileHome({ locale, content }: { locale: string; content: Content }) {
             <button className="m-tab" role="tab" aria-selected={tab === 'fav'} onClick={() => setTab('fav')}>
               {pt ? 'Favoritos' : 'Favorites'}
             </button>
-            <button className="m-tab" role="tab" aria-selected={false} onClick={() => fileRef.current?.click()}>
+            <button className="m-tab" role="tab" aria-selected={false} onClick={openPicker}>
               {pt ? 'No dispositivo' : 'On device'}
             </button>
           </div>
@@ -210,17 +201,17 @@ function MobileHome({ locale, content }: { locale: string; content: Content }) {
                   )}
                 </div>
                 <div className="m-grid">
-                  {shown.map((t) => <Tile key={t.id} slug={t.slug} locale={locale} content={content} />)}
+                  {shown.map((t) => <Tile key={t.id} id={t.id} content={content} onPick={launch} />)}
                 </div>
               </section>
             );
           })}
         </>
       )}
-      <input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={onPick} />
-      <button className="m-fab" aria-label={pt ? 'Abrir PDF' : 'Open PDF'} onClick={() => fileRef.current?.click()}>
+      <button className="m-fab" aria-label={pt ? 'Abrir PDF' : 'Open PDF'} onClick={openPicker}>
         <Plus aria-hidden="true" />
       </button>
+      {elements}
     </div>
   );
 }
@@ -230,4 +221,11 @@ export function HomeSwitch({ locale, localizedToolContent }: { locale: Locale; l
   if (mobile === null) return null;
   if (mobile) return <MobileHome locale={locale} content={localizedToolContent} />;
   return <HomePageClient locale={locale} localizedToolContent={localizedToolContent} />;
+}
+
+export function ToolsSwitch({ locale, localizedToolContent }: { locale: Locale; localizedToolContent: Content }) {
+  const mobile = useIsMobile();
+  if (mobile === null) return null;
+  if (mobile) return <MobileTools locale={locale} content={localizedToolContent} />;
+  return <ToolsPageClient locale={locale} localizedToolContent={localizedToolContent} />;
 }

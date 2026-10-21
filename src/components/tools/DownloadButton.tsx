@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Button, type ButtonProps } from '../ui/Button';
 import { addRecentFile } from '@/lib/storage/recent-files';
 import { useToolContext } from '@/lib/contexts/ToolContext';
+import { useToolBridge } from '@/lib/contexts/ToolBridgeContext';
 import { sanitizeFilename } from '@/lib/utils/sanitize';
 import { isTauri, saveBlobFile } from '@/lib/tauri-bridge';
 
@@ -66,9 +67,11 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({
   ...buttonProps
 }) => {
   const t = useTranslations('common');
+  const locale = useLocale();
+  const bridge = useToolBridge();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  
+
   // Get tool info from context if not provided via props
   const toolContext = useToolContext();
   const toolSlug = propToolSlug || toolContext?.toolSlug;
@@ -168,9 +171,17 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({
   const buttonText = label || t('buttons.download');
   const fileSizeText = showFileSize && file ? ` (${formatFileSize(file.size)})` : '';
 
-  return (
+  // Dentro do leitor do app, um resultado em PDF pode voltar para o documento.
+  const inReader = !!bridge && !!file && (file.type === 'application/pdf' || /\.pdf$/i.test(filename));
+  const replacesDocument = inReader && !!bridge && bridge.hasTaken();
+  const pt = locale.startsWith('pt');
+  const readerLabel = replacesDocument
+    ? pt ? 'Aplicar no documento' : 'Apply to document'
+    : pt ? 'Abrir no leitor' : 'Open in reader';
+
+  const downloadButton = (
     <Button
-      variant={variant}
+      variant={inReader ? 'outline' : variant}
       size={size}
       disabled={isDisabled}
       loading={isDownloading}
@@ -196,12 +207,29 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({
           />
         </svg>
       )}
-      
+
       <span>
         {buttonText}
         {fileSizeText}
       </span>
     </Button>
+  );
+
+  if (!inReader || !bridge || !file) return downloadButton;
+
+  return (
+    <>
+      <Button
+        variant="primary"
+        size={size}
+        onClick={() => (replacesDocument ? bridge.apply(file, filename) : bridge.openCopy(file, filename))}
+        className={className}
+        data-reader-action="apply"
+      >
+        <span>{readerLabel}</span>
+      </Button>
+      {downloadButton}
+    </>
   );
 };
 

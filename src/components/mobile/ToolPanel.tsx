@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { useBackClose } from './backStack';
 
 export interface PanelEnv {
   numPages: number;
@@ -70,6 +71,7 @@ export default function ToolPanel({
   onClose: () => void;
 }) {
   const pt = locale.startsWith('pt');
+  useBackClose(onClose);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [angle, setAngle] = useState(90);

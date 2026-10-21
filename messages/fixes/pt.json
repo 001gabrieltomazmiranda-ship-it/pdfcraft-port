@@ -1,0 +1,167 @@
+{
+  "common": {
+    "pdfPageResizerUniform": {
+      "filesLoaded": "{count} documentos de vários tamanhos carregados"
+    },
+    "comparePdfs": {
+      "pageNumber": "Página {page}",
+      "totalAligned": "{count} página(s)",
+      "diffSummary": "<red>{count}</red> com diferenças",
+      "alignSequence": "Par {current} de {total}",
+      "diffPercentage": "{percent}% de diferença"
+    },
+    "einkOptimizer": {
+      "originalInk": "Traço original"
+    },
+    "ocr": {
+      "formatMarkdown": "Markdown estruturado (.md)",
+      "formatJson": "JSON estruturado (.json)",
+      "enhanceContrast": "Melhoria inteligente da qualidade da imagem",
+      "enhanceContrastDesc": "Melhora o contraste e realça as bordas automaticamente em digitalizações escuras ou com tinta fraca",
+      "statsPages": "Páginas",
+      "statsWords": "Palavras",
+      "statsChars": "Caracteres",
+      "statsConfidence": "Confiança média",
+      "openInEditor": "Editar no editor de PDF",
+      "copied": "Copiado para a área de transferência!",
+      "copyText": "Copiar texto reconhecido"
+    },
+    "overlayPdf": {
+      "processing": "Processando..."
+    },
+    "pageLabels": {
+      "optionsTitle": "2. Configurar regras de mapeamento de etiquetas de página",
+      "addRuleButton": "Adicionar nova regra de etiqueta",
+      "deleteRuleTitle": "Remover esta regra",
+      "styleArabic": "1, 2, 3... (Números arábicos)",
+      "styleRomanUpper": "I, II, III... (Números romanos maiúsculos)",
+      "styleRomanLower": "i, ii, iii... (Números romanos minúsculos)",
+      "styleAlphaUpper": "A, B, C... (Letras maiúsculas)",
+      "styleAlphaLower": "a, b, c... (Letras minúsculas)",
+      "previewAlgorithmTitle": "Lógica de sobreposição de limites e precedência:",
+      "previewAlgorithmDesc": "Os selos abaixo exibem os layouts de etiquetas calculados. O selo colorido ao lado do índice de cada página representa o layout visível nos campos de pesquisa do leitor.",
+      "previewFolded": "{count} páginas recolhidas para otimizar o desempenho.",
+      "processing": "Processando...",
+      "previewLoadAll": "Carregar todas as {total} páginas"
+    },
+    "pdfToCbz": {
+      "pagesLabel": "páginas",
+      "processing": "Processando..."
+    },
+    "pdfToTiff": {
+      "processing": "Processando...",
+      "tipTail": "para garantir bordas nítidas."
+    },
+    "removeBlankPages": {
+      "tabAll": "Todas as páginas ({count})",
+      "tabBlanks": "Páginas em branco recomendadas ({count})",
+      "tabKeeps": "Retidas ({count})",
+      "noPagesToDisplay": "Nenhuma página corresponde ao filtro atual",
+      "successPurged": "{count} página(s) em branco purgada(s) com sucesso e PDF recompilado localmente.",
+      "processNewFile": "Enviar novo documento",
+      "badgeForceDelete": "Excluir",
+      "badgeForceKeep": "Reter",
+      "pageNumberLabel": "Página {num}",
+      "badgeEmptyPage": "EM BRANCO"
+    },
+    "errors": {
+      "fileCorrupted": "O arquivo parece estar corrompido ou ilegível.",
+      "processingFailed": "O processamento falhou. Por favor, tente novamente.",
+      "unknown": "Ocorreu um erro inesperado. Por favor, tente novamente.",
+      "uploadFile": "Envie um arquivo primeiro.",
+      "conversionFailed": "A conversão falhou. Tente novamente.",
+      "unexpectedError": "Ocorreu um erro inesperado."
+    }
+  },
+  "tools": {
+    "gridCombine": {
+      "showErrorDetails": "Mostrar detalhes do erro"
+    },
+    "extractPages": {
+      "selectOdd": "Ímpares",
+      "selectEven": "Pares"
+    },
+    "jsonToPdf": {
+      "filesTitle": "Arquivos JSON",
+      "preview": "Pré-visualização",
+      "optionsTitle": "Opções de PDF",
+      "pageSize": "Tamanho da página",
+      "fontSize": "Tamanho da fonte",
+      "indentSpaces": "Recuo",
+      "prettyPrint": "Formatar JSON (organizado)",
+      "showLineNumbers": "Mostrar números de linha"
+    },
+    "sanitizePdf": {
+      "flattenForms": "Achatar formulários"
+    },
+    "flattenPdf": {
+      "flattenForms": "Achatar campos de formulário",
+      "flattenAnnotations": "Achatar anotações",
+      "info": "Achatar converte elementos interativos (formulários, anotações) em conteúdo fixo da página. Isso torna o PDF não editável, mas garante a mesma aparência em todos os leitores.",
+      "flattenFormsDesc": "Converte campos de formulário preenchíveis em texto fixo",
+      "flattenAnnotationsDesc": "Mescla comentários, realces e carimbos ao conteúdo da página",
+      "flattenLayers": "Achatar camadas",
+      "flattenLayersDesc": "Mescla todas as camadas visíveis em uma única camada",
+      "flattenedItems": "Achatado:"
+    },
+    "bookmark": {
+      "removeAllConfirm": "Remover todos os marcadores? Você ainda pode salvar para baixar um PDF sem marcadores.",
+      "removeSelectedConfirm": "Remover {count, plural, one {# marcador selecionado} other {# marcadores selecionados}}? Os marcadores filhos deles também serão removidos.",
+      "selectForRemoval": "Selecionar \"{title}\"",
+      "removeSelected": "Remover selecionados ({count})",
+      "removeAll": "Remover todos",
+      "removedAllHint": "Todos os marcadores foram removidos. Salve para baixar um PDF sem marcadores.",
+      "selectHint": "Marque as caixas para remover vários marcadores de uma vez."
+    },
+    "psdToPdf": {
+      "reorderHint": "Arraste e solte para reordenar os arquivos."
+    },
+    "fontToOutline": {
+      "dpiDesc": "Um DPI maior gera mais qualidade, mas arquivos maiores. 300 DPI é recomendado para impressão.",
+      "preserveTextLabel": "Manter texto pesquisável (experimental)",
+      "preserveTextDesc": "Adiciona uma camada de texto invisível para busca. Pode aumentar o tamanho do arquivo."
+    },
+    "findAndRedact": {
+      "allMatches": "Todas ({count})"
+    },
+    "timestampPdf": {
+      "selectTsaTitle": "1. Selecione Autoridade TSA confiável (compatível com RFC 3161)",
+      "privacyGuaranteed": "Apenas hashes SHA-256 são enviados aos servidores TSA. Privacidade total do documento garantida.",
+      "processButton": "Carimbo de data e hora confiável",
+      "waitingTitle": "Aguardando Selo Criptográfico",
+      "waitingDescription": "Fazendo upload de fluxos de hash. Gerando carimbos de data/hora RFC 3161 oficiais.",
+      "certificateTitle": "Certificado oficial de carimbo de data / hora TSA",
+      "tsaTime": "Hora Certificada Atômica TSA (UTC)",
+      "fileHash": "Soma de verificação de hash criptográfico SHA-256",
+      "authority": "Emissor de autoridade TSA",
+      "serialNumber": "Série de token de carimbo de data/hora TSA",
+      "tsa": {
+        "desc": {
+          "MeSign": "Autoridade confiável MeSign TSA",
+          "DigiCert": "Nó criptográfico de PKI global DigiCert TSA",
+          "Sectigo": "Servidor de relógio atômico Sectigo TSA Comodo",
+          "SSL": {
+            "com": "Provedor americano confiável de TSA SSL.com"
+          },
+          "FreeTSA": "FreeTSA.org Serviço TSA gratuito de alta qualidade"
+        },
+        "speed": {
+          "fast": "Rápido",
+          "blazing": "Ultrarrápido",
+          "medium": "Médio",
+          "stable": "Estável"
+        }
+      }
+    },
+    "vectorExtractor": {
+      "previewHelp": "Passe o mouse para destacar vetores em 3D e clique para selecionar.",
+      "propertiesTitle": "Propriedades da camada vetorial",
+      "emptyTitle": "Nenhum vetor selecionado",
+      "emptyDescription": "Clique em qualquer caminho vetorial, caractere ou forma para extrair o código.",
+      "copied": "Código SVG copiado para a área de transferência",
+      "copyCode": "Copiar código SVG",
+      "downloadSelected": "Baixar recurso SVG",
+      "colorFill": "Cor de preenchimento"
+    }
+  }
+}

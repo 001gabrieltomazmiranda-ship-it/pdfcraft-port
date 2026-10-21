@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* O modo escuro segue a classe .dark (o app mobile sempre usa o escuro), não a preferência do sistema. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* PDFCraft Design System - CSS Variables for Theming */
 :root {
   /* Primary Colors - Deep Blue/Indigo for trust and modern tech feel */
@@ -319,3 +322,70 @@ select option {
 .scroll-smooth { scroll-behavior: smooth; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* ===== Ferramentas dentro do leitor do app (celular) =====
+   Ficam na camada base de propósito: qualquer classe do Tailwind (grid-cols-3,
+   lg:grid-cols-2...) continua valendo por cima destas regras. */
+@layer base {
+  /* Textos longos sem espaço (nomes de arquivo, códigos) quebram em vez de alargar a tela. */
+  .tool-host {
+    overflow-wrap: anywhere;
+  }
+  .tool-host input,
+  .tool-host select,
+  .tool-host textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* Grades sem colunas definidas crescem até caber o conteúdo; aqui elas respeitam a largura da tela. */
+  .tool-host .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Linhas de botões/campos quebram para a linha de baixo em vez de sair da tela. */
+  .tool-host .flex:not(.flex-col):not(.flex-col-reverse) {
+    flex-wrap: wrap;
+  }
+  .tool-host canvas,
+  .tool-host img,
+  .tool-host video,
+  .tool-host svg {
+    max-width: 100%;
+  }
+  .tool-host canvas,
+  .tool-host img,
+  .tool-host video {
+    height: auto;
+  }
+  /* Rótulos de botões e mensagens de progresso quebram de linha em vez de passar da borda do
+     botão (o botão padrão do projeto usa whitespace-nowrap, que estoura em telas estreitas).
+     Só quebra entre palavras (overflow-wrap normal), para números e códigos curtos não se partirem.
+     Aqui o !important é de propósito, para vencer a classe do Tailwind. */
+  .tool-host button,
+  .tool-host [role="button"] {
+    white-space: normal !important;
+    overflow-wrap: normal;
+    max-width: 100%;
+  }
+  .tool-host p.truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  /* Caixas brancas fixas (miniaturas, prévias, cartões) usam as cores do tema claro por dentro,
+     senão o texto claro do tema escuro fica invisível sobre o branco. As que já têm versão
+     escura (dark:bg-...) ficam de fora. */
+  .tool-host .bg-white:not([class*="dark:bg-"]) {
+    color: hsl(222 47% 11%);
+    --color-foreground: 222 47% 11%;
+    --color-card-foreground: 222 47% 11%;
+    --color-muted-foreground: 215 16% 47%;
+    --color-background: 210 40% 98%;
+    --color-card: 0 0% 100%;
+    --color-muted: 210 40% 96%;
+    --color-border: 214 32% 91%;
+    --color-input: 214 32% 91%;
+    --color-secondary: 215 20% 90%;
+    --color-secondary-foreground: 215 25% 15%;
+    --color-secondary-hover: 215 20% 80%;
+  }
+}

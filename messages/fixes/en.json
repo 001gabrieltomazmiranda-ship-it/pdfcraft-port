@@ -1,0 +1,139 @@
+{
+  "common": {
+    "pdfPageResizerUniform": {
+      "filesLoaded": "{count} multi-size documents loaded"
+    },
+    "comparePdfs": {
+      "pageNumber": "Page {page}",
+      "totalAligned": "{count} page(s)",
+      "diffSummary": "<red>{count}</red> with differences",
+      "alignSequence": "Pair {current} of {total}",
+      "diffPercentage": "{percent}% different"
+    },
+    "einkOptimizer": {
+      "originalInk": "Original Stroke"
+    },
+    "overlayPdf": {
+      "processing": "Processing..."
+    },
+    "pageLabels": {
+      "optionsTitle": "2. Configure Page Label Mapping Rules",
+      "addRuleButton": "Add New Label Rule",
+      "deleteRuleTitle": "Remove this rule",
+      "styleArabic": "1, 2, 3... (Arabic Numbers)",
+      "styleRomanUpper": "I, II, III... (Uppercase Roman)",
+      "styleRomanLower": "i, ii, iii... (Lowercase Roman)",
+      "styleAlphaUpper": "A, B, C... (Uppercase Alphabets)",
+      "styleAlphaLower": "a, b, c... (Lowercase Alphabets)",
+      "previewAlgorithmTitle": "Precedence & Boundary Overlay Logic:",
+      "previewAlgorithmDesc": "The badges below display computed label layouts. The colored badge next to each page index represents the layout visible in reader search fields.",
+      "previewFolded": "{count} pages collapsed to optimize performance.",
+      "processing": "Processing...",
+      "previewLoadAll": "Load all {total} pages"
+    },
+    "pdfToCbz": {
+      "pagesLabel": "pages",
+      "processing": "Processing..."
+    },
+    "pdfToTiff": {
+      "processing": "Processing...",
+      "tipTail": "to ensure clean edges."
+    },
+    "removeBlankPages": {
+      "tabAll": "All Pages ({count})",
+      "tabBlanks": "Target Blanks ({count})",
+      "tabKeeps": "Retained ({count})",
+      "noPagesToDisplay": "No pages match the current filter",
+      "successPurged": "Successfully purged {count} blank page(s) and recompiled the PDF locally.",
+      "processNewFile": "Upload New Document",
+      "badgeForceDelete": "Delete",
+      "badgeForceKeep": "Retain",
+      "pageNumberLabel": "Page {num}",
+      "badgeEmptyPage": "BLANK"
+    },
+    "errors": {
+      "fileCorrupted": "The file appears to be corrupted or unreadable.",
+      "processingFailed": "Processing failed. Please try again.",
+      "unknown": "An unexpected error occurred. Please try again.",
+      "uploadFile": "Please upload a file first.",
+      "conversionFailed": "Conversion failed. Please try again.",
+      "unexpectedError": "An unexpected error occurred."
+    }
+  },
+  "tools": {
+    "gridCombine": {
+      "showErrorDetails": "Show error details"
+    },
+    "jsonToPdf": {
+      "filesTitle": "JSON Files",
+      "preview": "Preview",
+      "optionsTitle": "PDF Options",
+      "pageSize": "Page Size",
+      "fontSize": "Font Size",
+      "indentSpaces": "Indentation",
+      "prettyPrint": "Format JSON (pretty print)",
+      "showLineNumbers": "Show line numbers"
+    },
+    "sanitizePdf": {
+      "flattenForms": "Flatten Forms"
+    },
+    "flattenPdf": {
+      "info": "Flattening converts interactive elements (forms, annotations) into static page content. This makes the PDF non-editable but ensures consistent appearance across all viewers.",
+      "flattenFormsDesc": "Convert fillable form fields to static text",
+      "flattenAnnotationsDesc": "Merge comments, highlights, and stamps into page content",
+      "flattenLayers": "Flatten Layers",
+      "flattenLayersDesc": "Merge all visible layers into a single layer",
+      "flattenedItems": "Flattened:"
+    },
+    "psdToPdf": {
+      "reorderHint": "Drag and drop to reorder files."
+    },
+    "fontToOutline": {
+      "dpiDesc": "Higher DPI produces better quality but larger files. 300 DPI recommended for print.",
+      "preserveTextLabel": "Preserve searchable text (experimental)",
+      "preserveTextDesc": "Adds invisible text layer for search. May increase file size."
+    },
+    "findAndRedact": {
+      "allMatches": "All ({count})"
+    },
+    "timestampPdf": {
+      "selectTsaTitle": "1. Select Trusted TSA Authority (RFC 3161 Compliant)",
+      "privacyGuaranteed": "Only SHA-256 hashes are sent to the TSA servers. Full document privacy guaranteed.",
+      "processButton": "Stamp Trusted Timestamp",
+      "waitingTitle": "Waiting for Cryptographic Seal",
+      "waitingDescription": "Uploading hash streams. Generating authoritative RFC 3161 timestamps.",
+      "certificateTitle": "Authoritative TSA Timestamp Certificate",
+      "tsaTime": "Atomic TSA Certified Time (UTC)",
+      "fileHash": "SHA-256 Cryptographic Hash Checksum",
+      "authority": "TSA Authority Issuer",
+      "serialNumber": "TSA Timestamp Token Serial",
+      "tsa": {
+        "desc": {
+          "MeSign": "MeSign TSA Trusted Authority",
+          "DigiCert": "DigiCert TSA Global PKI Cryptographic node",
+          "Sectigo": "Sectigo TSA Comodo Atomic Clock Server",
+          "SSL": {
+            "com": "SSL.com Trusted American TSA Provider"
+          },
+          "FreeTSA": "FreeTSA.org Free High-grade TSA Service"
+        },
+        "speed": {
+          "fast": "Fast",
+          "blazing": "Blazing",
+          "medium": "Medium",
+          "stable": "Stable"
+        }
+      }
+    },
+    "vectorExtractor": {
+      "previewHelp": "Hover to highlight vectors in 3D, click to select.",
+      "propertiesTitle": "Vector Layer Properties",
+      "emptyTitle": "No Vector Selected",
+      "emptyDescription": "Click any vector path, character, or shape to extract the code.",
+      "copied": "SVG code copied to clipboard",
+      "copyCode": "Copy SVG Code",
+      "downloadSelected": "Download SVG Asset",
+      "colorFill": "Fill color"
+    }
+  }
+}

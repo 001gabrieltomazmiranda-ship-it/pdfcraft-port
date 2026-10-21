@@ -4,6 +4,7 @@ import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { UploadCloud, File, Plus, X, Lock, Loader2 } from 'lucide-react';
 import { isTauri } from '@/lib/tauri-bridge';
+import { useToolBridge } from '@/lib/contexts/ToolBridgeContext';
 
 export interface FileUploaderProps {
   /** Accepted file types (MIME types or extensions) */
@@ -291,6 +292,20 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
       }
     }
   }, [disabled, validateFiles, onError, onFilesSelected]);
+
+  // Dentro do leitor do app: a primeira área de envio que aceita PDF já recebe
+  // o documento aberto, então a pessoa não precisa escolher o arquivo de novo.
+  const bridge = useToolBridge();
+  const handleFilesRef = useRef(handleFiles);
+  handleFilesRef.current = handleFiles;
+  useEffect(() => {
+    if (!bridge || disabled) return;
+    if (!accept.some((type) => type === 'application/pdf' || type === '.pdf')) return;
+    const doc = bridge.takeFile();
+    if (doc) void handleFilesRef.current([doc]);
+    // Só no primeiro uso da área de envio.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();

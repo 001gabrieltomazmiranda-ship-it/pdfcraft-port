@@ -2,6 +2,14 @@ import { getRequestConfig } from 'next-intl/server';
 import { routing } from './routing';
 import { mergeWithFallback } from '@/lib/i18n/fallback';
 
+async function loadFixes(locale: string) {
+  try {
+    return (await import(`../../messages/fixes/${locale}.json`)).default;
+  } catch {
+    return {};
+  }
+}
+
 export default getRequestConfig(async ({ requestLocale }) => {
   // This typically corresponds to the `[locale]` segment
   let locale = await requestLocale;
@@ -29,9 +37,20 @@ export default getRequestConfig(async ({ requestLocale }) => {
 
   // Merge locale messages with English fallback
   // This ensures all keys are available, falling back to English for missing ones
-  const messages = locale === 'en' 
+  const baseMessages = locale === 'en' 
     ? englishMessages 
     : mergeWithFallback(localeMessages, englishMessages);
+
+  // Textos que o código das ferramentas usa mas que os arquivos acima não têm
+  // (ficam em messages/fixes para não mexer nos arquivos principais).
+  // 1) o que falta em todos os idiomas é preenchido em inglês;
+  // 2) o texto do próprio idioma, quando existe, vale por cima.
+  const englishFixes = await loadFixes('en');
+  const localeFixes = locale === 'en' ? {} : await loadFixes(locale);
+  const messages = mergeWithFallback(
+    localeFixes,
+    mergeWithFallback(baseMessages, englishFixes)
+  );
 
   return {
     locale,
