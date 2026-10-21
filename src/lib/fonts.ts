@@ -15,9 +15,14 @@
  * - macOS: San Francisco/-apple-system (San Francisco Pro Display, native Hebrew)
  * - Linux/Other: Arial and system fonts (Hebrew support)
  * See HEBREW_FIX.md for details.
+ *
+ * Arabic Support:
+ * Arabic has a self-hosted Noto Sans Arabic webfont (OFL) that is applied to RTL
+ * locales, so Arabic UI text no longer depends on a system font being installed.
+ * See ARABIC_FIX.md for details.
  */
 
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Inter, JetBrains_Mono, Noto_Sans_Arabic } from 'next/font/google';
 
 /**
  * Inter font - Primary sans-serif font
@@ -60,9 +65,44 @@ export const jetbrainsMono = JetBrains_Mono({
 });
 
 /**
+ * Noto Sans Arabic - Arabic UI font
+ * Self-hosted by next/font (no runtime request to Google Fonts).
+ *
+ * Only applied to RTL locales (see fontVariablesFor), so Latin-only pages never
+ * download it. `preload: false` keeps the font out of the critical path.
+ */
+export const notoSansArabic = Noto_Sans_Arabic({
+  subsets: ['arabic'],
+  display: 'swap',
+  variable: '--font-arabic',
+  preload: false,
+  fallback: [
+    'Segoe UI',            // Windows (Arabic support)
+    'Geeza Pro',           // macOS / iOS
+    'Al Nile',             // macOS
+    'Damascus',            // macOS
+    'Noto Naskh Arabic',   // Common Linux Arabic font
+    'Arial Unicode MS',
+    'Arial',
+    'system-ui',
+    'sans-serif',
+  ],
+  adjustFontFallback: true,
+});
+
+/**
  * Combined font variables for use in className
  */
 export const fontVariables = `${inter.variable} ${jetbrainsMono.variable}`;
+
+/**
+ * Font variables for a given text direction.
+ * The Arabic webfont is only attached to RTL locales so LTR pages keep the
+ * exact same font payload as before.
+ */
+export function fontVariablesFor(direction: 'ltr' | 'rtl'): string {
+  return direction === 'rtl' ? `${fontVariables} ${notoSansArabic.variable}` : fontVariables;
+}
 
 /**
  * Font class names for direct usage
