@@ -292,3 +292,6 @@ button.m-tile, button.ms-tile { font-family: inherit; cursor: pointer; }
 .rs-btn2 { border: 1px solid rgba(168,85,247,.6); background: none; color: #c9a8ff; }
 .rs-btn:disabled, .rs-btn2:disabled { opacity: .45; }
 .rs-menu-item .rs-row-dim { white-space: normal; }
+
+/* aviso na parte de baixo: usa a largura da tela (antes quebrava na metade) */
+.r-toast { width: max-content; max-width: calc(100% - 32px); box-sizing: border-box; text-align: center; line-height: 1.35; z-index: 96; }

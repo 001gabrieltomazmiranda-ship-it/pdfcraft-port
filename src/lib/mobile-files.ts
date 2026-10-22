@@ -106,7 +106,10 @@ export function removeRecent(id: string): RecentDoc[] {
   return list;
 }
 
-export async function saveBytes(name: string, bytes: Uint8Array): Promise<'saved' | 'cancelled'> {
+export async function saveBytes(name: string, input: Uint8Array): Promise<'saved' | 'cancelled'> {
+  // cópia "desta janela": um Uint8Array vindo de um iframe não é reconhecido pelo Tauri no Android
+  const bytes = new Uint8Array(input.length);
+  bytes.set(input);
   if (isTauri()) {
     const { save } = await import('@tauri-apps/plugin-dialog');
     const path = await save({

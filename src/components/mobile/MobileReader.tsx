@@ -141,7 +141,7 @@ export default function MobileReader({ locale, titles }: { locale: string; title
 
   const flash = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    setTimeout(() => setToast((cur) => (cur === msg ? null : cur)), msg.includes('(') ? 7000 : 2500);
   };
 
   /** O documento como está agora, com o que foi escrito/desenhado na tela. */
@@ -149,9 +149,20 @@ export default function MobileReader({ locale, titles }: { locale: string; title
     const app = getApp();
     if (app?.pdfDocument) {
       editorManager(app)?.commitOrRemove();
-      return app.pdfDocument.saveDocument();
+      const raw = await app.pdfDocument.saveDocument();
+      // Os bytes vêm do visualizador (outra "janela"). Sem esta cópia, o Android não
+      // reconhece os dados ao gravar o arquivo ("Não foi possível salvar").
+      const copy = new Uint8Array(raw.length);
+      copy.set(raw);
+      return copy;
     }
     return new Uint8Array(await (blob as Blob).arrayBuffer());
+  };
+
+  /** Pedacinho do erro técnico, para aparecer na mensagem (ajuda a descobrir o problema). */
+  const why = (err: unknown) => {
+    const msg = String((err as { message?: string })?.message || err || '').replace(/\s+/g, ' ').trim();
+    return msg ? ` (${msg.slice(0, 90)})` : '';
   };
 
   const getFile = async (): Promise<File | null> => {
@@ -305,7 +316,7 @@ export default function MobileReader({ locale, titles }: { locale: string; title
       }
     } catch (err) {
       console.error('[resize]', err);
-      flash(pt ? 'Não foi possível redimensionar.' : 'Could not resize.');
+      flash((pt ? 'Não foi possível redimensionar.' : 'Could not resize.') + why(err));
     } finally {
       setPeMsg(null);
     }
@@ -356,8 +367,9 @@ export default function MobileReader({ locale, titles }: { locale: string; title
       if (warnings.includes('image-not-editable')) {
         flash(pt ? 'Edição salva. Uma imagem não pôde ser alterada.' : 'Saved. One image could not be changed.');
       }
-    } catch {
-      flash(pt ? 'Não foi possível salvar a edição. Tente de novo.' : 'Could not save the edits. Try again.');
+    } catch (err) {
+      console.error('[edit]', err);
+      flash((pt ? 'Não foi possível salvar a edição. Tente de novo.' : 'Could not save the edits. Try again.') + why(err));
     } finally {
       onEngineStatus(null);
       savingRef.current = false;
@@ -434,8 +446,9 @@ export default function MobileReader({ locale, titles }: { locale: string; title
       const out = name.replace(/\.pdf$/i, '') + '_editado.pdf';
       const r = await saveBytes(out, bytes);
       if (r === 'saved') flash(pt ? 'Arquivo salvo.' : 'Saved.');
-    } catch {
-      flash(pt ? 'Não foi possível salvar.' : 'Could not save.');
+    } catch (err) {
+      console.error('[save]', err);
+      flash((pt ? 'Não foi possível salvar.' : 'Could not save.') + why(err));
     } finally {
       setBusy(false);
     }

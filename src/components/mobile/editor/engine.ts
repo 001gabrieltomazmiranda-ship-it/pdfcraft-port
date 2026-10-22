@@ -71,6 +71,7 @@ function ensure(): Worker {
 /** Começa a carregar o motor em segundo plano (para o Concluído ser rápido). */
 export function warmupEngine(): Promise<void> {
   if (ready) return Promise.resolve();
+  if (workerBroken) return Promise.resolve();
   return new Promise((resolve, reject) => {
     readyWaiters.push({ resolve, reject });
     try {
@@ -86,17 +87,97 @@ export function onEngineStatus(fn: ((s: EngineStatus) => void) | null): void {
 }
 
 export function isEngineReady(): boolean {
-  return ready;
+  return ready && !workerBroken;
 }
 
-/** Grava as mudanças no PDF e devolve o arquivo novo. */
-export function applyEdits(pdf: Uint8Array, ops: unknown[]): Promise<{ bytes: Uint8Array; warnings: string[] }> {
+// ---------- plano B: o mesmo motor na tela principal ----------
+// Alguns aparelhos não deixam o Worker carregar o motor. Aí ele roda aqui mesmo
+// (a tela fica parada uns segundos, mas com o aviso "Salvando a edição…").
+
+interface PyLike {
+  FS: { writeFile: (p: string, d: Uint8Array) => void; readFile: (p: string) => Uint8Array; unlink: (p: string) => void };
+  globals: { set: (k: string, v: unknown) => void };
+  runPython: (code: string) => unknown;
+  loadPackage: (url: string) => Promise<unknown>;
+}
+
+let mainEngine: Promise<PyLike> | null = null;
+let workerBroken = false;
+
+async function loadMainEngine(): Promise<PyLike> {
+  statusListener?.('loading');
+  const base = new URL(withBasePath('/pymupdf-wasm/'), window.location.href).href;
+  const mod = (await import(/* webpackIgnore: true */ base + 'pyodide.js')) as {
+    loadPyodide: (o: Record<string, unknown>) => Promise<PyLike>;
+  };
+  const py = await mod.loadPyodide({ indexURL: base, fullStdLib: false });
+  statusListener?.('installing');
+  await py.loadPackage(base + 'pymupdf-1.26.3-cp313-none-pyodide_2025_0_wasm32.whl');
+  const src = await (await fetch(withBasePath('/workers/pdf-edit-engine.py'))).text();
+  py.runPython(src);
+  return py;
+}
+
+async function applyOnMain(pdf: Uint8Array, ops: unknown[]): Promise<{ bytes: Uint8Array; warnings: string[] }> {
+  if (!mainEngine) {
+    mainEngine = loadMainEngine().catch((err) => {
+      mainEngine = null;
+      throw err;
+    });
+  }
+  const py = await mainEngine;
+  statusListener?.('saving');
+  const id = ++seq;
+  const inPath = '/main_in_' + id + '.pdf';
+  const outPath = '/main_out_' + id + '.pdf';
+  py.FS.writeFile(inPath, pdf);
+  py.globals.set('EDIT_OPS', JSON.stringify(ops));
+  const report = String(py.runPython("apply_edits('" + inPath + "', '" + outPath + "', EDIT_OPS)"));
+  const out = py.FS.readFile(outPath);
+  try {
+    py.FS.unlink(inPath);
+    py.FS.unlink(outPath);
+  } catch {
+    /* sem problema */
+  }
+  const bytes = new Uint8Array(out.length);
+  bytes.set(out);
+  const parsed = JSON.parse(report) as { warnings?: string[] };
+  return { bytes, warnings: parsed.warnings || [] };
+}
+
+/** Grava as mudanças no PDF e devolve o arquivo novo (Worker; se falhar, na tela principal). */
+export async function applyEdits(pdf: Uint8Array, ops: unknown[]): Promise<{ bytes: Uint8Array; warnings: string[] }> {
+  if (!workerBroken && typeof Worker !== 'undefined' && !(globalThis as { __pcForceMain?: boolean }).__pcForceMain) {
+    try {
+      // se o motor não ficar pronto em 1 minuto, desiste do Worker e usa o plano B
+      await Promise.race([
+        warmupEngine(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('engine start timeout')), 60000)),
+      ]);
+      return await applyInWorker(pdf, ops);
+    } catch (err) {
+      console.warn('[edit] worker falhou, tentando na tela principal', err);
+      workerBroken = true;
+      try {
+        worker?.terminate();
+      } catch {
+        /* ignora */
+      }
+      worker = null;
+      ready = false;
+    }
+  }
+  return applyOnMain(pdf, ops);
+}
+
+function applyInWorker(pdf: Uint8Array, ops: unknown[]): Promise<{ bytes: Uint8Array; warnings: string[] }> {
   return new Promise((resolve, reject) => {
     const id = ++seq;
     const timer = setTimeout(() => {
       pending.delete(id);
       reject(new Error('timeout'));
-    }, 180000);
+    }, 120000);
     pending.set(id, { resolve, reject, timer });
     try {
       const copy = pdf.slice().buffer;
