@@ -61,21 +61,10 @@ export function ValidateSignatureTool({ className = '' }: { className?: string }
     if (pdfFile) {
       setLoading(true);
       try {
-        const forge = (await import('node-forge')).default;
-        const content = await file.text();
-        let cert;
-        if (content.includes('-----BEGIN CERTIFICATE-----')) {
-          cert = forge.pki.certificateFromPem(content);
-        } else {
-          const bytes = new Uint8Array(await file.arrayBuffer());
-          const derString = String.fromCharCode.apply(null, Array.from(bytes));
-          const asn1 = forge.asn1.fromDer(derString);
-          cert = forge.pki.certificateFromAsn1(asn1);
-        }
-
+        const certBytes = new Uint8Array(await file.arrayBuffer());
         const pdfBytes = new Uint8Array(await pdfFile.arrayBuffer());
         const { validatePdfSignatures } = await import('@/lib/pdf/processors/validate-signature');
-        const res = await validatePdfSignatures(pdfBytes, cert);
+        const res = await validatePdfSignatures(pdfBytes, certBytes);
         setResults(res);
         setValidated(true);
       } catch (err) {
@@ -196,21 +185,25 @@ export function ValidateSignatureTool({ className = '' }: { className?: string }
               {/* Signature Cards */}
               {results.map((result, index) => {
                 let statusColor = 'text-green-600 dark:text-green-400';
-                let statusBg = 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800';
-                let statusText = tTool('validSignature');
+                let statusText = result.kind === 'timestamp' ? tTool('validTimestamp') : tTool('validSignature');
 
                 if (!result.isValid) {
                   statusColor = 'text-red-600 dark:text-red-400';
-                  statusBg = 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800';
-                  statusText = tTool('invalidSignature');
+                  statusText =
+                    result.problem === 'modified'
+                      ? tTool('problemModified')
+                      : result.problem === 'badSignature'
+                        ? tTool('problemBadSignature')
+                        : tTool('invalidSignature');
+                } else if (result.unverifiable) {
+                  statusColor = 'text-yellow-600 dark:text-yellow-400';
+                  statusText = tTool('problemUnsupported');
                 } else if (result.isExpired) {
                   statusColor = 'text-yellow-600 dark:text-yellow-400';
-                  statusBg = 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800';
                   statusText = tTool('certificateExpired');
                 } else if (result.isSelfSigned) {
                   statusColor = 'text-yellow-600 dark:text-yellow-400';
-                  statusBg = 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800';
-                  statusText = tTool('selfSigned');
+                  statusText = tTool('selfSignedValid');
                 }
 
                 return (
@@ -219,7 +212,9 @@ export function ValidateSignatureTool({ className = '' }: { className?: string }
                       {/* Header */}
                       <div className="flex items-start justify-between">
                         <div>
-                          <h4 className="font-semibold text-[hsl(var(--color-foreground))]">Signature {index + 1}</h4>
+                          <h4 className="font-semibold text-[hsl(var(--color-foreground))]">
+                            {result.kind === 'timestamp' ? tTool('timestampTitle', { n: index + 1 }) : tTool('signatureTitle', { n: index + 1 })}
+                          </h4>
                           <p className={`text-sm ${statusColor}`}>{statusText}</p>
                         </div>
                         <div className="flex gap-2">
@@ -252,7 +247,23 @@ export function ValidateSignatureTool({ className = '' }: { className?: string }
                         </div>
                       </div>
 
-                      {result.signatureDate && (
+                      {result.isValid && (
+                        <p className="text-xs text-[hsl(var(--color-muted-foreground))]">
+                          {result.coverageStatus === 'full' ? tTool('documentIntact') : tTool('laterChanges')}
+                        </p>
+                      )}
+
+                      {result.timestampTime && (
+                        <div className="text-sm">
+                          <p className="text-[hsl(var(--color-muted-foreground))]">{tTool('tsaTime')}</p>
+                          <p className="text-[hsl(var(--color-foreground))]">
+                            {formatDate(result.timestampTime)}
+                            {result.tsaName ? ` · ${result.tsaName}` : ''}
+                          </p>
+                        </div>
+                      )}
+
+                      {result.signatureDate && !result.timestampTime && (
                         <div className="text-sm">
                           <p className="text-[hsl(var(--color-muted-foreground))]">{tTool('signedOn')}</p>
                           <p className="text-[hsl(var(--color-foreground))]">{formatDate(result.signatureDate)}</p>
@@ -291,7 +302,10 @@ export function ValidateSignatureTool({ className = '' }: { className?: string }
                           <p><span className="text-[hsl(var(--color-muted-foreground))]">{tTool('serialNumber')}</span> <span className="font-mono text-[hsl(var(--color-foreground))]">{result.serialNumber}</span></p>
                           <p><span className="text-[hsl(var(--color-muted-foreground))]">{tTool('digestAlgorithm')}</span> <span className="text-[hsl(var(--color-foreground))]">{result.algorithms.digest}</span></p>
                           <p><span className="text-[hsl(var(--color-muted-foreground))]">{tTool('signatureAlgorithm')}</span> <span className="text-[hsl(var(--color-foreground))]">{result.algorithms.signature}</span></p>
-                          {result.errorMessage && <p className="text-red-600 dark:text-red-400">Error: {result.errorMessage}</p>}
+                          {result.subFilter && <p><span className="text-[hsl(var(--color-muted-foreground))]">SubFilter</span> <span className="font-mono text-[hsl(var(--color-foreground))]">{result.subFilter}</span></p>}
+                          {result.timestampSerial && <p><span className="text-[hsl(var(--color-muted-foreground))]">{tTool('timestampSerial')}</span> <span className="font-mono text-[hsl(var(--color-foreground))]">{result.timestampSerial}</span></p>}
+                          {result.documentHash && <p className="break-all"><span className="text-[hsl(var(--color-muted-foreground))]">{tTool('documentHash')}</span> <span className="font-mono text-[hsl(var(--color-foreground))]">{result.documentHash}</span></p>}
+                          {result.errorMessage && <p className="text-red-600 dark:text-red-400 break-words">{result.errorMessage}</p>}
                         </div>
                       </details>
                     </div>

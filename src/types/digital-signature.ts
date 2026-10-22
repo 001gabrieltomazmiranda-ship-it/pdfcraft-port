@@ -70,4 +70,17 @@ export interface SignatureValidationResult {
   location?: string;
   contactInfo?: string;
   errorMessage?: string;
+  /** assinatura comum ou carimbo de tempo do documento (RFC 3161) */
+  kind?: 'signature' | 'timestamp';
+  subFilter?: string;
+  /** hora oficial dada pela autoridade de carimbo de tempo (TSA) */
+  timestampTime?: Date;
+  tsaName?: string;
+  timestampSerial?: string;
+  /** o algoritmo não pôde ser conferido neste aparelho */
+  unverifiable?: boolean;
+  /** resumo (hash) do trecho assinado, em hexadecimal */
+  documentHash?: string;
+  /** por que não é válida */
+  problem?: 'modified' | 'badSignature' | 'unsupported' | 'other';
 }

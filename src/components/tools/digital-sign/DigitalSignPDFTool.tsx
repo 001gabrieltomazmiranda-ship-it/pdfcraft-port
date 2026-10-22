@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { tr } from '@/lib/pdf/ui-lang';
 import { FileUploader } from '../FileUploader';
 import { ProcessingProgress, ProcessingStatus } from '../ProcessingProgress';
 import { DownloadButton } from '../DownloadButton';
@@ -204,7 +205,7 @@ export function DigitalSignPDFTool({ className = '' }: { className?: string }) {
         let text = sigText;
         if (!text && !sigImageData) {
           const info = getCertificateInfo(certData.certificate);
-          text = `Digitally signed by ${info.subject}\n${new Date().toLocaleDateString()}`;
+          text = `${tr('Assinado digitalmente por', 'Digitally signed by')} ${info.subject}\n${new Date().toLocaleDateString()}`;
         }
 
         // Dynamic height calculation based on text

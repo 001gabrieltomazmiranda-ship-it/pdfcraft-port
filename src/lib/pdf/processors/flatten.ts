@@ -1,232 +1,199 @@
 /**
- * PDF Flatten Processor
- * Requirements: 5.1
- * 
- * Implements PDF flattening functionality using pdf-lib.
- * Flattens form fields into the page content, making them non-editable.
+ * Achatar PDF: transforma formulários, anotações (comentários, realces, desenhos, carimbos)
+ * e camadas em conteúdo fixo da página. Fica igual na tela, mas ninguém mais edita.
  */
 
-import type {
-  ProcessInput,
-  ProcessOutput,
-  ProgressCallback,
-} from '@/types/pdf';
+import type { ProcessInput, ProcessOutput, ProgressCallback } from '@/types/pdf';
 import { PDFErrorCode } from '@/types/pdf';
 import { BasePDFProcessor } from '../processor';
 import { loadPdfLib } from '../loader';
+import { flattenAnnotations } from '../flatten-annotations';
+import { tr } from '../ui-lang';
 
-/**
- * Flatten PDF options
- */
 export interface FlattenPDFOptions {
   /** Flatten form fields */
   flattenForms: boolean;
-  /** Flatten annotations */
+  /** Flatten annotations (comments, highlights, drawings, stamps) */
   flattenAnnotations?: boolean;
-  /** Flatten layers */
+  /** Flatten layers (optional content) */
   flattenLayers?: boolean;
 }
 
-/**
- * Default flatten options
- */
 const DEFAULT_FLATTEN_OPTIONS: FlattenPDFOptions = {
   flattenForms: true,
   flattenAnnotations: true,
   flattenLayers: true,
 };
 
-/**
- * Flatten PDF Processor
- * Flattens form fields into static page content.
- */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** Camadas: se todas estão visíveis, junta tudo (some o painel de camadas); se alguma está
+ * escondida, trava as camadas como estão (ninguém liga/desliga mais). */
+function flattenLayers(lib: any, doc: any): string | null {
+  const N = lib.PDFName;
+  const ctx = doc.context;
+  const oc = ctx.lookup(doc.catalog.get(N.of('OCProperties')));
+  if (!(oc instanceof lib.PDFDict)) return null;
+  const ocgs = ctx.lookup(oc.get(N.of('OCGs')));
+  const d = ctx.lookup(oc.get(N.of('D')));
+  let anyOff = false;
+  if (d instanceof lib.PDFDict) {
+    const base = d.get(N.of('BaseState'));
+    const off = ctx.lookup(d.get(N.of('OFF')));
+    if (base instanceof lib.PDFName && base.decodeText() === 'OFF') anyOff = true;
+    if (off instanceof lib.PDFArray && off.size() > 0) anyOff = true;
+  }
+  if (!anyOff) {
+    doc.catalog.delete(N.of('OCProperties'));
+    return tr('camadas juntadas', 'layers merged');
+  }
+  if (d instanceof lib.PDFDict && ocgs instanceof lib.PDFArray) {
+    d.set(N.of('Locked'), ocgs);
+    d.delete(N.of('Order'));
+    d.delete(N.of('AS'));
+  }
+  return tr('camadas travadas como estão', 'layers locked as shown');
+}
+
 export class FlattenPDFProcessor extends BasePDFProcessor {
-  /**
-   * Process PDF file and flatten it
-   */
-  async process(
-    input: ProcessInput,
-    onProgress?: ProgressCallback
-  ): Promise<ProcessOutput> {
+  async process(input: ProcessInput, onProgress?: ProgressCallback): Promise<ProcessOutput> {
     this.reset();
     this.onProgress = onProgress;
 
     const { files, options } = input;
-    const flattenOptions: FlattenPDFOptions = {
-      ...DEFAULT_FLATTEN_OPTIONS,
-      ...(options as Partial<FlattenPDFOptions>),
-    };
+    const opts: FlattenPDFOptions = { ...DEFAULT_FLATTEN_OPTIONS, ...(options as Partial<FlattenPDFOptions>) };
 
-    // Validate we have exactly 1 file
     if (files.length !== 1) {
       return this.createErrorOutput(
         PDFErrorCode.INVALID_OPTIONS,
-        'Please provide exactly one PDF file to flatten.',
+        tr('Envie exatamente 1 PDF.', 'Please provide exactly one PDF file to flatten.'),
         `Received ${files.length} file(s).`
       );
     }
-
     const file = files[0];
 
     try {
-      this.updateProgress(5, 'Loading PDF library...');
-
-      // Load pdf-lib
-      const pdfLib = await loadPdfLib();
-
-      if (this.checkCancelled()) {
-        return this.createErrorOutput(
-          PDFErrorCode.PROCESSING_CANCELLED,
-          'Processing was cancelled.'
-        );
-      }
-
-      this.updateProgress(10, 'Reading PDF file...');
-
-      // Read file as ArrayBuffer
+      this.updateProgress(5, tr('Carregando…', 'Loading PDF library...'));
+      const pdfLib: any = await loadPdfLib();
+      this.updateProgress(15, tr('Lendo o PDF…', 'Reading PDF file...'));
       const arrayBuffer = await file.arrayBuffer();
       const originalSize = arrayBuffer.byteLength;
 
-      this.updateProgress(20, 'Loading PDF document...');
-
-      // Load the source PDF
-      let pdfDoc;
+      let pdfDoc: any;
       try {
-        pdfDoc = await pdfLib.PDFDocument.load(arrayBuffer, {
-          ignoreEncryption: true,
-        });
+        pdfDoc = await pdfLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true, updateMetadata: false });
       } catch (error) {
-        if (error instanceof Error && error.message.includes('encrypt')) {
-          return this.createErrorOutput(
-            PDFErrorCode.PDF_ENCRYPTED,
-            'The PDF file is encrypted.',
-            'Please decrypt the file before flattening.'
-          );
-        }
-        throw error;
-      }
-
-      if (this.checkCancelled()) {
-        return this.createErrorOutput(
-          PDFErrorCode.PROCESSING_CANCELLED,
-          'Processing was cancelled.'
-        );
-      }
-
-      this.updateProgress(30, 'Analyzing PDF structure...');
-
-      const pageCount = pdfDoc.getPageCount();
-
-      if (pageCount === 0) {
         return this.createErrorOutput(
           PDFErrorCode.PDF_MALFORMED,
-          'The PDF file contains no pages.',
-          'Cannot flatten an empty PDF.'
+          tr('Não foi possível ler este PDF.', 'Could not read this PDF.'),
+          error instanceof Error ? error.message : String(error)
         );
       }
+      if (pdfDoc.isEncrypted) {
+        return this.createErrorOutput(
+          PDFErrorCode.PDF_ENCRYPTED,
+          tr('Este PDF tem senha. Use "Remover senha" primeiro.', 'The PDF file is encrypted.'),
+          tr('Remova a senha e tente de novo.', 'Please decrypt the file before flattening.')
+        );
+      }
+      if (this.checkCancelled()) return this.createErrorOutput(PDFErrorCode.PROCESSING_CANCELLED, 'Processing was cancelled.');
 
-      // Track what was flattened
+      const pageCount = pdfDoc.getPageCount();
+      if (pageCount === 0) {
+        return this.createErrorOutput(PDFErrorCode.PDF_MALFORMED, tr('O PDF não tem páginas.', 'The PDF file contains no pages.'));
+      }
+
       const flattenedItems: string[] = [];
       let hasFormFields = false;
 
-      this.updateProgress(50, 'Flattening form fields...');
-
-      // Flatten form fields using pdf-lib's form.flatten() method
-      if (flattenOptions.flattenForms) {
+      // 1) formulário: primeiro do jeito do pdf-lib (gera a aparência com o valor preenchido)
+      let widgetsLeft = false;
+      if (opts.flattenForms) {
+        this.updateProgress(35, tr('Achatando o formulário…', 'Flattening form fields...'));
         try {
           const form = pdfDoc.getForm();
           const fields = form.getFields();
-
           if (fields.length > 0) {
             hasFormFields = true;
-            form.flatten();
-            flattenedItems.push(`${fields.length} form field(s)`);
+            try {
+              form.flatten();
+              // formulário vazio não precisa ficar no arquivo
+              if (form.getFields().length === 0) pdfDoc.catalog.delete(pdfLib.PDFName.of('AcroForm'));
+              flattenedItems.push(tr(`${fields.length} campo(s) de formulário`, `${fields.length} form field(s)`));
+            } catch (e) {
+              console.warn('[achatar] formulário pelo pdf-lib falhou, usando as aparências do arquivo', e);
+              widgetsLeft = true;
+            }
           }
-        } catch (e: any) {
-          // PDF might not have a form or form might be malformed
-          if (!e.message?.includes('getForm')) {
-            console.warn('Could not flatten forms:', e.message);
-          }
+        } catch (e) {
+          console.warn('[achatar] formulário ilegível', e);
+          widgetsLeft = true;
         }
       }
 
-      if (this.checkCancelled()) {
-        return this.createErrorOutput(
-          PDFErrorCode.PROCESSING_CANCELLED,
-          'Processing was cancelled.'
-        );
+      // 2) anotações (e campos que sobraram)
+      if (opts.flattenAnnotations || widgetsLeft) {
+        this.updateProgress(60, tr('Achatando as anotações…', 'Flattening annotations...'));
+        const r = await flattenAnnotations(pdfLib, pdfDoc, {
+          annotations: !!opts.flattenAnnotations,
+          widgets: widgetsLeft,
+        });
+        if (r.widgets) {
+          hasFormFields = true;
+          flattenedItems.push(tr(`${r.widgets} campo(s) de formulário`, `${r.widgets} form field(s)`));
+        }
+        if (r.flattened) flattenedItems.push(tr(`${r.flattened} anotação(ões)`, `${r.flattened} annotation(s)`));
       }
 
-      this.updateProgress(80, 'Saving flattened PDF...');
+      // 3) camadas
+      if (opts.flattenLayers) {
+        this.updateProgress(75, tr('Juntando as camadas…', 'Flattening layers...'));
+        const msg = flattenLayers(pdfLib, pdfDoc);
+        if (msg) flattenedItems.push(msg);
+      }
 
-      // Save the flattened PDF
+      if (this.checkCancelled()) return this.createErrorOutput(PDFErrorCode.PROCESSING_CANCELLED, 'Processing was cancelled.');
+
+      this.updateProgress(85, tr('Salvando…', 'Saving flattened PDF...'));
       const flattenedPdfBytes = await pdfDoc.save({ useObjectStreams: true });
-
-      // Create blob from the Uint8Array
       const blob = new Blob([new Uint8Array(flattenedPdfBytes)], { type: 'application/pdf' });
-      const newSize = flattenedPdfBytes.length;
 
-      this.updateProgress(100, 'Complete!');
+      this.updateProgress(100, tr('Pronto!', 'Complete!'));
+      if (flattenedItems.length === 0) flattenedItems.push(tr('nada para achatar neste arquivo', 'nothing to flatten in this file'));
 
-      // Generate output filename
-      const outputFilename = generateFlattenedFilename(file.name);
-
-      return this.createSuccessOutput(blob, outputFilename, {
+      return this.createSuccessOutput(blob, generateFlattenedFilename(file.name), {
         pageCount,
         originalSize,
-        newSize,
+        newSize: flattenedPdfBytes.length,
         flattenedItems,
         hasFormFields,
         flattened: true,
       });
-
     } catch (error) {
       return this.createErrorOutput(
         PDFErrorCode.PROCESSING_FAILED,
-        'Failed to flatten PDF file.',
+        tr('Não foi possível achatar o PDF.', 'Failed to flatten PDF file.'),
         error instanceof Error ? error.message : 'Unknown error'
       );
     }
   }
 
-  /**
-   * Get accepted file types for flatten processor
-   */
   protected getAcceptedTypes(): string[] {
     return ['application/pdf'];
   }
 }
 
-/**
- * Generate a filename for the flattened PDF
- */
 function generateFlattenedFilename(originalName: string): string {
   const lastDot = originalName.lastIndexOf('.');
   const baseName = lastDot === -1 ? originalName : originalName.slice(0, lastDot);
   return `${baseName}_flattened.pdf`;
 }
 
-/**
- * Create a new instance of the flatten processor
- */
 export function createFlattenProcessor(): FlattenPDFProcessor {
   return new FlattenPDFProcessor();
 }
 
-/**
- * Flatten a PDF file (convenience function)
- */
-export async function flattenPDF(
-  file: File,
-  options?: Partial<FlattenPDFOptions>,
-  onProgress?: ProgressCallback
-): Promise<ProcessOutput> {
+export async function flattenPDF(file: File, options?: Partial<FlattenPDFOptions>, onProgress?: ProgressCallback): Promise<ProcessOutput> {
   const processor = createFlattenProcessor();
-  return processor.process(
-    {
-      files: [file],
-      options: options || {},
-    },
-    onProgress
-  );
+  return processor.process({ files: [file], options: options || {} }, onProgress);
 }

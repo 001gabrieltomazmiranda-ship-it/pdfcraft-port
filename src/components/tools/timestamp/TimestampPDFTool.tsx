@@ -21,11 +21,14 @@ interface AuditLog {
   serial: string;
 }
 
+// Autoridades públicas de carimbo de tempo (RFC 3161). Se a escolhida não responder,
+// o app tenta as outras sozinho (ver src/lib/pdf/processors/timestamp.ts).
 const TSA_SERVERS = [
-  { id: 'MeSign', name: 'MeSign TSA', speedKey: 'fast' },
   { id: 'DigiCert', name: 'DigiCert TSA', speedKey: 'blazing' },
   { id: 'Sectigo', name: 'Sectigo TSA', speedKey: 'blazing' },
   { id: 'SSL.com', name: 'SSL.com TSA', speedKey: 'stable' },
+  { id: 'Apple', name: 'Apple TSA', speedKey: 'fast' },
+  { id: 'Entrust', name: 'Entrust TSA', speedKey: 'stable' },
   { id: 'FreeTSA', name: 'FreeTSA.org', speedKey: 'medium' },
 ];
 
@@ -39,7 +42,7 @@ export function TimestampPDFTool({ className = '' }: TimestampPDFToolProps) {
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
 
   // Settings
-  const [selectedTSA, setSelectedTSA] = useState<string>('MeSign');
+  const [selectedTSA, setSelectedTSA] = useState<string>('DigiCert');
 
   // Status & Outcomes
   const [status, setStatus] = useState<ProcessingStatus>('idle');
@@ -47,6 +50,7 @@ export function TimestampPDFTool({ className = '' }: TimestampPDFToolProps) {
   const [progressMessage, setProgressMessage] = useState('');
   const [result, setResult] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [auditLog, setAuditLog] = useState<AuditLog | null>(null);
 
   // Cancellation ref
@@ -97,6 +101,7 @@ export function TimestampPDFTool({ className = '' }: TimestampPDFToolProps) {
     setStatus('processing');
     setProgress(0);
     setError(null);
+    setErrorDetails(null);
     setResult(null);
     setAuditLog(null);
 
@@ -132,6 +137,7 @@ export function TimestampPDFTool({ className = '' }: TimestampPDFToolProps) {
         }
       } else {
         setError(output.error?.message || 'Failed to apply RFC 3161 timestamp.');
+        setErrorDetails(output.error?.details || null);
         setStatus('error');
       }
     } catch (err) {
@@ -170,6 +176,7 @@ export function TimestampPDFTool({ className = '' }: TimestampPDFToolProps) {
       {error && (
         <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 animate-in fade-in">
           <p className="text-sm font-semibold">{error}</p>
+          {errorDetails && <p className="mt-2 text-[11px] opacity-80 break-words">{errorDetails}</p>}
         </div>
       )}
 
@@ -219,6 +226,9 @@ export function TimestampPDFTool({ className = '' }: TimestampPDFToolProps) {
                   </h3>
                   <p className="text-[11px] text-[hsl(var(--color-muted-foreground))] mt-1">
                     {tTools('timestampPdf.privacyGuaranteed')}
+                  </p>
+                  <p className="text-[11px] text-[hsl(var(--color-muted-foreground))] mt-1">
+                    {tTools('timestampPdf.fallbackNote')}
                   </p>
                 </div>
 
@@ -322,7 +332,7 @@ export function TimestampPDFTool({ className = '' }: TimestampPDFToolProps) {
                   <div className="flex items-start justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
                     <div className="space-y-1">
                       <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400 font-bold uppercase tracking-wider">
-                        TSA Verified & Secured
+                        {tTools('timestampPdf.verifiedBadge')}
                       </span>
                       <h4 className="text-base font-black tracking-tight text-[hsl(var(--color-foreground))]">
                         {tTools('timestampPdf.certificateTitle')}
@@ -351,6 +361,9 @@ export function TimestampPDFTool({ className = '' }: TimestampPDFToolProps) {
                         <p className="text-[10px] text-[hsl(var(--color-muted-foreground))] uppercase font-bold tracking-wider">{tTools('timestampPdf.tsaTime')}</p>
                         <p className="text-sm font-extrabold text-[hsl(var(--color-foreground))] mt-0.5">
                           {new Date(auditLog.timestamp).toLocaleString()}
+                        </p>
+                        <p className="text-[10px] text-[hsl(var(--color-muted-foreground))] font-mono mt-0.5">
+                          UTC {auditLog.timestamp.replace('T', ' ').replace(/\.\d+Z$|Z$/, '')}
                         </p>
                       </div>
                     </div>

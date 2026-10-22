@@ -682,7 +682,9 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
               </h3>
               
               <p className="text-xs text-[hsl(var(--color-muted-foreground))] mb-4 max-w-[280px] break-all leading-relaxed">
-                {t('fileUploader.enterPasswordHelp')}
+                {/* o texto traduzido traz um "<br/>" literal: tira e quebra a linha de verdade */}
+                {String(t('fileUploader.enterPasswordHelp')).replace(/<br\s*\/?>/gi, '').trim()}
+                <br />
                 <span className="font-semibold text-[hsl(var(--color-foreground))]">{encryptPendingFiles[encryptCurrentIndex]?.name}</span>
               </p>
               

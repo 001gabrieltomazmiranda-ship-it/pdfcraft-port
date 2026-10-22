@@ -329,7 +329,16 @@ export function RemoveMetadataTool({ className = '' }: RemoveMetadataToolProps) 
           </p>
           {removedFields.length > 0 && (
             <p className="text-xs mt-1 text-green-600">
-              {tTools('removeMetadata.removedFields') || 'Removed:'} {removedFields.join(', ')}
+              {tTools('removeMetadata.removedFields') || 'Removed:'}{' '}
+              {removedFields
+                .map((f) =>
+                  f === 'xmp'
+                    ? tTools('removeMetadata.xmpLabel')
+                    : f === 'custom'
+                      ? tTools('removeMetadata.customLabel')
+                      : tTools(`removeMetadata.${f}`)
+                )
+                .join(', ')}
             </p>
           )}
         </div>

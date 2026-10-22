@@ -236,49 +236,27 @@ export class EncryptPDFProcessor extends BasePDFProcessor {
 
       // Build qpdf command arguments
       const userPassword = encryptOptions.userPassword || '';
-      const ownerPassword = encryptOptions.ownerPassword || userPassword;
-      const hasDistinctOwnerPassword = !!encryptOptions.ownerPassword && encryptOptions.ownerPassword !== encryptOptions.userPassword;
+      const perms = encryptOptions.permissions;
+      const anyRestriction =
+        !perms.printing || !perms.modifying || !perms.copying || !perms.annotating ||
+        !perms.fillingForms || !perms.documentAssembly;
+      const distinctOwner = !!encryptOptions.ownerPassword && encryptOptions.ownerPassword !== userPassword;
+      // sem senha de dono as restrições não valeriam: cria uma senha de dono aleatória
+      const ownerPassword = distinctOwner
+        ? encryptOptions.ownerPassword
+        : anyRestriction
+          ? randomPassword()
+          : encryptOptions.ownerPassword || userPassword;
 
       const args = [inputPath, '--encrypt', userPassword, ownerPassword, '256'];
 
-      // Add permission restrictions if owner password is set and permissions are restricted
-      if (hasDistinctOwnerPassword) {
-        const perms = encryptOptions.permissions;
-        
-        // Modify permissions
-        if (!perms.modifying) {
-          args.push('--modify=none');
-        }
-        
-        // Extract/copy permissions
-        if (!perms.copying) {
-          args.push('--extract=n');
-        }
-        
-        // Print permissions
-        if (!perms.printing) {
-          args.push('--print=none');
-        }
-        
-        // Accessibility
-        if (!perms.contentAccessibility) {
-          args.push('--accessibility=n');
-        }
-        
-        // Annotate
-        if (!perms.annotating) {
-          args.push('--annotate=n');
-        }
-        
-        // Assembly
-        if (!perms.documentAssembly) {
-          args.push('--assemble=n');
-        }
-        
-        // Form filling
-        if (!perms.fillingForms) {
-          args.push('--form=n');
-        }
+      if (distinctOwner || anyRestriction) {
+        if (!perms.modifying) args.push('--modify=none');
+        if (!perms.copying) args.push('--extract=n');
+        if (!perms.printing) args.push('--print=none');
+        if (!perms.annotating) args.push('--annotate=n');
+        if (!perms.documentAssembly) args.push('--assemble=n');
+        if (!perms.fillingForms) args.push('--form=n');
       }
 
       args.push('--', outputPath);
@@ -368,6 +346,13 @@ export class EncryptPDFProcessor extends BasePDFProcessor {
   protected getAcceptedTypes(): string[] {
     return ['application/pdf'];
   }
+}
+
+/** senha aleatória (para a senha de dono quando a pessoa não escolhe uma) */
+function randomPassword(): string {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**

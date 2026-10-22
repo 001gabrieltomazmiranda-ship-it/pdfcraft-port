@@ -3,6 +3,7 @@
  * Signs PDFs with X.509 certificates using node-forge + zgapdfsigner.
  */
 import forge from 'node-forge';
+import { loadZga, zgaSign } from '../zga';
 import type {
   CertificateData,
   SignPdfOptions,
@@ -94,8 +95,8 @@ export async function signPdf(
   certificateData: CertificateData,
   options: SignPdfOptions = {}
 ): Promise<Uint8Array> {
-  // Dynamic import to avoid SSR issues
-  const { PdfSigner } = await import('zgapdfsigner');
+  // carregado sob demanda (e preparado para o app: rede pelo lado nativo, pdf-lib sempre em ordem)
+  const z = await loadZga();
 
   const signatureInfo = options.signatureInfo ?? {};
 
@@ -110,13 +111,22 @@ export async function signPdf(
 
   if (options.visibleSignature?.enabled) {
     const vs = options.visibleSignature;
+    // "última página" e números fora do arquivo viram um índice válido
+    const { PDFDocument } = await import('pdf-lib');
+    const probe = await PDFDocument.load(pdfBytes, { ignoreEncryption: true, updateMetadata: false });
+    const count = probe.getPageCount();
+    let pageidx: number = typeof vs.page === 'number' ? vs.page : parseInt(String(vs.page), 10);
+    if (vs.page === 'last' || !Number.isFinite(pageidx)) pageidx = count - 1;
+    pageidx = Math.min(Math.max(0, pageidx), count - 1);
     const drawinf: Record<string, unknown> = {
       area: { x: vs.x, y: vs.y, w: vs.width, h: vs.height },
-      pageidx: vs.page,
+      pageidx,
     };
 
     if (vs.imageData && vs.imageType) {
-      drawinf.imgInfo = { imgData: vs.imageData, imgType: vs.imageType };
+      // o assinador só aceita "png" e "jpg"
+      const imgType = vs.imageType === 'png' ? 'png' : vs.imageType === 'jpeg' ? 'jpg' : null;
+      if (imgType) drawinf.imgInfo = { imgData: new Uint8Array(vs.imageData), imgType };
     }
     if (vs.text) {
       drawinf.textInfo = {
@@ -129,7 +139,5 @@ export async function signPdf(
     signOptions.drawinf = drawinf;
   }
 
-  const signer = new PdfSigner(signOptions);
-  const signedPdfBytes = await signer.sign(pdfBytes);
-  return new Uint8Array(signedPdfBytes);
+  return zgaSign(z, signOptions, pdfBytes);
 }

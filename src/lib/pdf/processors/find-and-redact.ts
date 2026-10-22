@@ -8,6 +8,7 @@
 
 import { loadPdfjs } from '../loader';
 import { redactPDF, type RedactionArea } from './redact';
+import { buildPageIndex, boxesForRange, escapeRegExp, wholeWordPattern } from '../text-search';
 
 /**
  * Text match found in the PDF
@@ -156,18 +157,16 @@ export async function searchTextInPDF(
                 let pattern: RegExp;
                 if (options.useRegex) {
                     pattern = new RegExp(
-                        term,
+                        options.wholeWord ? `\\b(?:${term})\\b` : term,
                         options.caseSensitive ? 'g' : 'gi'
                     );
                 } else {
-                    // Escape special regex characters for literal search
-                    let escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    if (options.wholeWord) {
-                        escapedTerm = `\\b${escapedTerm}\\b`;
-                    }
+                    // texto literal; espaços do termo valem para espaços/quebras do PDF;
+                    // "palavra inteira" que entende acentos
+                    const escaped = term.trim().split(/\s+/).map(escapeRegExp).join('\\s+');
                     pattern = new RegExp(
-                        escapedTerm,
-                        options.caseSensitive ? 'g' : 'gi'
+                        options.wholeWord ? wholeWordPattern(escaped) : escaped,
+                        options.caseSensitive ? 'gu' : 'giu'
                     );
                 }
                 searchPatterns.push({ pattern, term });
@@ -200,71 +199,36 @@ export async function searchTextInPDF(
 
             try {
                 const page = await pdf.getPage(pageNum);
-                const viewport = page.getViewport({ scale: 1 });
-                const textContent = await page.getTextContent();
+                // texto da página inteira (pedaços da mesma linha juntos)
+                const index = await buildPageIndex(page);
+                if (!index.text) continue;
 
-                // Process text items to find matches
-                for (const item of textContent.items) {
-                    if (!('str' in item) || !('transform' in item)) continue;
-
-                    const textItem = item as {
-                        str: string;
-                        transform: number[];
-                        width: number;
-                        height: number;
-                        fontName?: string;
-                    };
-
-                    const text = textItem.str;
-                    if (!text) continue;
-
-                    // Search for each pattern in the text
-                    for (const { pattern: searchPattern } of searchPatterns) {
-                        // Find all matches in this text item
-                        let match: RegExpExecArray | null;
-                        searchPattern.lastIndex = 0; // Reset regex state
-
-                        while ((match = searchPattern.exec(text)) !== null) {
-                            // Calculate approximate position of the match within the text item
-                            const matchStart = match.index;
-                            const matchText = match[0];
-                            const fullTextWidth = textItem.width;
-                            const charWidth = fullTextWidth / text.length;
-
-                            // Transform matrix: [scaleX, skewX, skewY, scaleY, translateX, translateY]
-                            const transform = textItem.transform;
-                            const x = transform[4] + matchStart * charWidth;
-                            const y = transform[5];
-                            const width = matchText.length * charWidth;
-                            const height = Math.abs(textItem.height) || Math.abs(transform[0]) * 0.8;
-
-                            // Convert to PDF coordinates (origin at bottom-left)
-                            // The y-coordinate from getTextContent is already in PDF coordinates
-                            const pdfY = y;
-
+                for (const { pattern: searchPattern } of searchPatterns) {
+                    let match: RegExpExecArray | null;
+                    searchPattern.lastIndex = 0;
+                    while ((match = searchPattern.exec(index.text)) !== null) {
+                        if (match[0].length === 0) {
+                            searchPattern.lastIndex++;
+                            continue;
+                        }
+                        const boxes = boxesForRange(index, match.index, match.index + match[0].length, 0);
+                        for (const box of boxes) {
                             matches.push({
                                 page: pageNum,
-                                text: matchText,
-                                x: x,
-                                y: pdfY,
-                                width: width,
-                                height: height,
-                                id: `match-${pageNum}-${x.toFixed(2)}-${pdfY.toFixed(2)}-${matches.length}`,
-                                selected: true, // Selected by default
+                                text: match[0],
+                                x: box.x,
+                                y: box.y,
+                                width: box.width,
+                                height: box.height,
+                                id: `match-${pageNum}-${box.x.toFixed(2)}-${box.y.toFixed(2)}-${matches.length}`,
+                                selected: true,
                             });
-
-                            pagesWithMatches.add(pageNum);
-
-                            // Prevent infinite loop for zero-length matches
-                            if (match[0].length === 0) {
-                                searchPattern.lastIndex++;
-                            }
                         }
+                        if (boxes.length) pagesWithMatches.add(pageNum);
                     }
                 }
             } catch (pageError) {
                 console.warn(`Error processing page ${pageNum}:`, pageError);
-                // Continue with other pages
             }
         }
 

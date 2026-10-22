@@ -146,14 +146,7 @@ export class DecryptPDFProcessor extends BasePDFProcessor {
       );
     }
 
-    // Validate password is provided
-    if (!decryptOptions.password) {
-      return this.createErrorOutput(
-        PDFErrorCode.INVALID_OPTIONS,
-        'Please provide the PDF password.',
-        'A password is required to decrypt the PDF.'
-      );
-    }
+    // senha vazia é permitida: PDFs que só têm restrições (sem senha para abrir) abrem assim
 
     const file = files[0];
     const inputPath = '/input.pdf';

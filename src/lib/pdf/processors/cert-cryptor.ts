@@ -1,284 +1,343 @@
 /**
- * 3D Wax-Seal & Certificate Cryptor Processor
- * Secures PDF files using certificate-based encryption and embeds
- * standard PKCS#7 digital signatures with a 3D-effect physical wax seal.
+ * Selo de cera + certificado ("Cifrar Certificado").
+ *
+ * - Desenha um selo de cera (imagem) no ponto escolhido e usa esse selo como a aparência
+ *   de uma ASSINATURA DIGITAL de verdade (PKCS#7 destacada, SHA-256), feita com um
+ *   certificado próprio do app ("PDFCraft Selo de Cera", autoassinado, criado no aparelho).
+ *   Qualquer alteração posterior no arquivo aparece como assinatura inválida.
+ * - Opcional: protege o PDF com senha para abrir (AES de 256 bits).
  */
 
-import type {
-  ProcessInput,
-  ProcessOutput,
-  ProgressCallback,
-} from '@/types/pdf';
+import type { ProcessInput, ProcessOutput, ProgressCallback } from '@/types/pdf';
 import { PDFErrorCode } from '@/types/pdf';
 import { BasePDFProcessor } from '../processor';
 import { loadPdfLib } from '../loader';
+import { loadZga, zgaSign, hasSignatures } from '../zga';
+import { findPdfSignatures, inspectPdfSignature } from '../signature-inspect';
+import { tr } from '../ui-lang';
 
 export interface CertCryptorOptions {
   waxColor: 'gold' | 'red' | 'bronze';
-  sealPage?: number; // 0-indexed page number
+  /** página do selo (0 = primeira) */
+  sealPage?: number;
+  /** posição do centro do selo em frações da página (0..1, a partir do canto de cima à esquerda) */
+  sealFx?: number;
+  sealFy?: number;
+  /** (antigo) centro do selo em pontos do PDF, origem embaixo à esquerda, numa página A4 */
   sealX?: number;
   sealY?: number;
+  /** senha para abrir o PDF quando a proteção com senha está ligada */
   pfxPassword?: string;
+  /** liga a proteção com senha (AES-256) */
   encryptWithCert?: boolean;
+  /** tamanho do selo em pontos */
+  sealSize?: number;
+}
+
+const PALETTES = {
+  gold: { base: '#c9971f', light: '#f6d873', dark: '#6f4d06' },
+  red: { base: '#a3161a', light: '#e8696b', dark: '#4e0507' },
+  bronze: { base: '#8c5a2b', light: '#d29d63', dark: '#3f240c' },
+} as const;
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** Desenha o selo de cera numa imagem PNG (fundo transparente). */
+export async function drawWaxSealPng(color: keyof typeof PALETTES, px = 300): Promise<Uint8Array> {
+  if (typeof document === 'undefined') throw new Error('canvas not available');
+  const pal = PALETTES[color] || PALETTES.gold;
+  const canvas = document.createElement('canvas');
+  canvas.width = px;
+  canvas.height = px;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('canvas not available');
+  const c = px / 2;
+  const R = px * 0.43;
+
+  // cera derretida: borda irregular, com sombra embaixo
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.38)';
+  ctx.shadowBlur = px * 0.05;
+  ctx.shadowOffsetX = px * 0.012;
+  ctx.shadowOffsetY = px * 0.02;
+  ctx.beginPath();
+  const N = 48;
+  const pts: [number, number][] = [];
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    const r = R * (1 + 0.045 * Math.sin(i * 2.7) + 0.03 * Math.sin(i * 5.3 + 1.3) + 0.02 * Math.cos(i * 9.1));
+    pts.push([c + Math.cos(a) * r, c + Math.sin(a) * r]);
+  }
+  for (let i = 0; i < N; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[(i + 1) % N];
+    const mx = (x0 + x1) / 2;
+    const my = (y0 + y1) / 2;
+    if (i === 0) ctx.moveTo(mx, my);
+    else ctx.quadraticCurveTo(x0, y0, mx, my);
+  }
+  ctx.quadraticCurveTo(pts[0][0], pts[0][1], (pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2);
+  ctx.closePath();
+  const g = ctx.createRadialGradient(c - R * 0.4, c - R * 0.45, R * 0.05, c, c, R * 1.15);
+  g.addColorStop(0, pal.light);
+  g.addColorStop(0.45, pal.base);
+  g.addColorStop(1, pal.dark);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.restore();
+
+  // disco prensado no meio (um pouco mais fundo)
+  const r2 = R * 0.7;
+  const g2 = ctx.createRadialGradient(c + r2 * 0.3, c + r2 * 0.35, r2 * 0.1, c, c, r2);
+  g2.addColorStop(0, pal.light);
+  g2.addColorStop(0.55, pal.base);
+  g2.addColorStop(1, pal.dark);
+  ctx.beginPath();
+  ctx.arc(c, c, r2, 0, Math.PI * 2);
+  ctx.fillStyle = g2;
+  ctx.fill();
+  // borda do disco: sombra em cima, brilho embaixo (efeito afundado)
+  const edge = ctx.createLinearGradient(c - r2, c - r2, c + r2, c + r2);
+  edge.addColorStop(0, pal.dark);
+  edge.addColorStop(1, pal.light);
+  ctx.lineWidth = px * 0.022;
+  ctx.strokeStyle = edge;
+  ctx.stroke();
+
+  // pontinhos em volta
+  for (let i = 0; i < 20; i++) {
+    const a = (i / 20) * Math.PI * 2;
+    const x = c + Math.cos(a) * R * 0.84;
+    const y = c + Math.sin(a) * R * 0.84;
+    ctx.beginPath();
+    ctx.arc(x + px * 0.003, y + px * 0.003, px * 0.009, 0, Math.PI * 2);
+    ctx.fillStyle = pal.dark;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y, px * 0.008, 0, Math.PI * 2);
+    ctx.fillStyle = pal.light;
+    ctx.fill();
+  }
+
+  // brasão: escudo com "visto", em alto-relevo (sombra + brilho + base)
+  const shield = (dx: number, dy: number) => {
+    const w = r2 * 0.95;
+    const h = r2 * 1.12;
+    const x = c - w / 2 + dx;
+    const y = c - h / 2 + dy;
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * 0.12);
+    ctx.quadraticCurveTo(x + w / 2, y - h * 0.06, x + w, y + h * 0.12);
+    ctx.lineTo(x + w, y + h * 0.5);
+    ctx.quadraticCurveTo(x + w, y + h * 0.85, x + w / 2, y + h);
+    ctx.quadraticCurveTo(x, y + h * 0.85, x, y + h * 0.5);
+    ctx.closePath();
+  };
+  const check = (dx: number, dy: number) => {
+    ctx.beginPath();
+    ctx.moveTo(c - r2 * 0.26 + dx, c + r2 * 0.02 + dy);
+    ctx.lineTo(c - r2 * 0.06 + dx, c + r2 * 0.24 + dy);
+    ctx.lineTo(c + r2 * 0.3 + dx, c - r2 * 0.2 + dy);
+  };
+  const o = px * 0.008;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = px * 0.018;
+  shield(o, o);
+  ctx.strokeStyle = pal.dark;
+  ctx.stroke();
+  shield(-o, -o);
+  ctx.strokeStyle = pal.light;
+  ctx.stroke();
+  shield(0, 0);
+  ctx.fillStyle = pal.base;
+  ctx.fill();
+  ctx.lineWidth = px * 0.04;
+  check(o, o);
+  ctx.strokeStyle = pal.dark;
+  ctx.stroke();
+  check(-o * 0.7, -o * 0.7);
+  ctx.strokeStyle = pal.light;
+  ctx.stroke();
+
+  const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+  if (blob) return new Uint8Array(await blob.arrayBuffer());
+  const url = canvas.toDataURL('image/png');
+  const bin = atob(url.split(',')[1] || '');
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+interface SealIdentity {
+  p12: Uint8Array;
+  pwd: string;
+  name: string;
+}
+
+let identity: Promise<SealIdentity> | null = null;
+
+/** Certificado do selo, criado uma vez por sessão no próprio aparelho. */
+function sealIdentity(): Promise<SealIdentity> {
+  if (!identity) {
+    identity = (async () => {
+      const mod: any = await import('node-forge');
+      const forge = mod.default && mod.default.pki ? mod.default : mod;
+      const keys: any = await new Promise((resolve, reject) => {
+        forge.pki.rsa.generateKeyPair({ bits: 2048, e: 0x10001 }, (err: unknown, kp: unknown) => (err ? reject(err) : resolve(kp)));
+      });
+      const cert = forge.pki.createCertificate();
+      cert.publicKey = keys.publicKey;
+      cert.serialNumber = '01' + forge.util.bytesToHex(forge.random.getBytesSync(15));
+      const now = Date.now();
+      cert.validity.notBefore = new Date(now - 24 * 3600 * 1000);
+      cert.validity.notAfter = new Date(now + 10 * 365 * 24 * 3600 * 1000);
+      const name = 'PDFCraft Selo de Cera';
+      const attrs = [
+        { name: 'commonName', value: name },
+        { name: 'organizationName', value: 'PDFCraft' },
+      ];
+      cert.setSubject(attrs);
+      cert.setIssuer(attrs);
+      cert.setExtensions([
+        { name: 'basicConstraints', cA: false },
+        { name: 'keyUsage', critical: true, digitalSignature: true, nonRepudiation: true },
+        { name: 'subjectKeyIdentifier' },
+      ]);
+      cert.sign(keys.privateKey, forge.md.sha256.create());
+      const pwd = forge.util.bytesToHex(forge.random.getBytesSync(12));
+      const asn1 = forge.pkcs12.toPkcs12Asn1(keys.privateKey, [cert], pwd, { algorithm: '3des' });
+      const der: string = forge.asn1.toDer(asn1).getBytes();
+      const p12 = new Uint8Array(der.length);
+      for (let i = 0; i < der.length; i++) p12[i] = der.charCodeAt(i);
+      return { p12, pwd, name };
+    })().catch((err) => {
+      identity = null;
+      throw err;
+    });
+  }
+  return identity;
+}
+
+function shortError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.length > 160 ? msg.slice(0, 160) + '…' : msg;
 }
 
 export class CertCryptorProcessor extends BasePDFProcessor {
-  async process(
-    input: ProcessInput,
-    onProgress?: ProgressCallback
-  ): Promise<ProcessOutput> {
+  async process(input: ProcessInput, onProgress?: ProgressCallback): Promise<ProcessOutput> {
     this.reset();
     this.onProgress = onProgress;
 
     const { files, options } = input;
-    const cryptorOptions: CertCryptorOptions = {
+    const opts: CertCryptorOptions = {
       waxColor: 'gold',
       sealPage: 0,
-      sealX: 100,
-      sealY: 100,
       encryptWithCert: false,
       ...(options as Partial<CertCryptorOptions>),
     };
 
-    // We can have 1 PDF file, and optionally 1 PFX cert file (as files[1])
     if (files.length < 1) {
-      return this.createErrorOutput(
-        PDFErrorCode.INVALID_OPTIONS,
-        'At least one PDF file is required.'
-      );
+      return this.createErrorOutput(PDFErrorCode.INVALID_OPTIONS, tr('Envie um PDF.', 'At least one PDF file is required.'));
     }
-
     const pdfFile = files[0];
-    const certFile = files.length > 1 ? files[1] : null;
 
     try {
-      this.updateProgress(10, 'Loading cryptographic & PDF engines...');
+      this.updateProgress(10, tr('Lendo o PDF…', 'Reading PDF…'));
+      const bytes = new Uint8Array(await pdfFile.arrayBuffer());
       const pdfLib = await loadPdfLib();
-
-      this.updateProgress(25, 'Loading target PDF bytes...');
-      const arrayBuffer = await pdfFile.arrayBuffer();
-      const pdfDoc = await pdfLib.PDFDocument.load(arrayBuffer);
-      const totalPages = pdfDoc.getPageCount();
-
-      const pageIdx = Math.min(totalPages - 1, Math.max(0, cryptorOptions.sealPage || 0));
-      const page = pdfDoc.getPage(pageIdx);
-
-      this.updateProgress(45, 'Creating 3D wax seal graphic elements...');
-
-      // Let's draw a beautiful 3D physical wax seal.
-      // Since embedding a raw external image requires network/paths, we will draw a gorgeous 
-      // vector wax seal stamp with overlapping circles, a central logo, and shading lines 
-      // to mimic 3D normal-mapped emboss/height variations.
-      const sealX = cryptorOptions.sealX || 100;
-      const sealY = cryptorOptions.sealY || 100;
-      const radius = 35;
-
-      // Color scheme based on selection
-      let baseColor = pdfLib.rgb(0.85, 0.65, 0.15); // Gold
-      let shadowColor = pdfLib.rgb(0.55, 0.4, 0.05);
-      let highlightColor = pdfLib.rgb(1.0, 0.85, 0.4);
-
-      if (cryptorOptions.waxColor === 'red') {
-        baseColor = pdfLib.rgb(0.7, 0.1, 0.1); // Crimson
-        shadowColor = pdfLib.rgb(0.4, 0.02, 0.02);
-        highlightColor = pdfLib.rgb(0.9, 0.3, 0.3);
-      } else if (cryptorOptions.waxColor === 'bronze') {
-        baseColor = pdfLib.rgb(0.6, 0.4, 0.2); // Bronze
-        shadowColor = pdfLib.rgb(0.35, 0.2, 0.08);
-        highlightColor = pdfLib.rgb(0.8, 0.6, 0.4);
+      let doc: any;
+      try {
+        doc = await pdfLib.PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
+      } catch (err) {
+        return this.createErrorOutput(PDFErrorCode.PDF_MALFORMED, tr('Não foi possível ler este PDF.', 'Could not read this PDF.'), shortError(err));
+      }
+      if (doc.isEncrypted) {
+        return this.createErrorOutput(
+          PDFErrorCode.PDF_ENCRYPTED,
+          tr('Este PDF já tem senha. Use "Remover senha" primeiro.', 'This PDF is password-protected. Remove the password first.')
+        );
+      }
+      const wantPassword = !!opts.encryptWithCert;
+      const password = (opts.pfxPassword || '').trim() || 'pdfcraft';
+      if (wantPassword && hasSignatures(bytes)) {
+        return this.createErrorOutput(
+          PDFErrorCode.INVALID_OPTIONS,
+          tr(
+            'Este PDF já tem uma assinatura. Colocar senha agora estragaria a assinatura anterior: desmarque a senha ou use uma cópia sem assinatura.',
+            'This PDF is already signed. Adding a password now would break the existing signature: turn the password off or use an unsigned copy.'
+          )
+        );
       }
 
-      // Draw irregular overlapping outer wax blobs (simulating organic molten wax)
-      const blobCount = 8;
-      for (let i = 0; i < blobCount; i++) {
-        const angle = (i * 2 * Math.PI) / blobCount;
-        // Add random size variation
-        const offsetR = radius * (1.0 + Math.sin(i * 3.5) * 0.08);
-        const bx = sealX + Math.cos(angle) * (radius * 0.15);
-        const by = sealY + Math.sin(angle) * (radius * 0.15);
+      const pageCount = doc.getPageCount();
+      const pageIdx = Math.min(pageCount - 1, Math.max(0, Math.round(opts.sealPage || 0)));
+      const page = doc.getPage(pageIdx);
+      const { width: pw, height: ph } = page.getSize();
+      const angle = (((page.getRotation().angle || 0) % 360) + 360) % 360;
+      const sideways = angle === 90 || angle === 270;
+      const vw = sideways ? ph : pw;
+      const vh = sideways ? pw : ph;
 
-        // Blob base
-        page.drawCircle({
-          x: bx,
-          y: by,
-          size: offsetR,
-          color: baseColor,
-        });
+      let fx = opts.sealFx;
+      let fy = opts.sealFy;
+      if (typeof fx !== 'number' || typeof fy !== 'number') {
+        // formato antigo: pontos numa página A4 com origem embaixo
+        fx = (opts.sealX ?? 120) / 595.276;
+        fy = 1 - (opts.sealY ?? 500) / 841.89;
+      }
+      fx = Math.min(1, Math.max(0, fx));
+      fy = Math.min(1, Math.max(0, fy));
+      const size = Math.min(opts.sealSize || 72, vw * 0.5, vh * 0.5);
+      const x = Math.min(Math.max(0, fx * vw - size / 2), vw - size);
+      const y = Math.min(Math.max(0, fy * vh - size / 2), vh - size);
 
-        // 3D edge highlight (crescent)
-        page.drawCircle({
-          x: bx - 1.5,
-          y: by + 1.5,
-          size: offsetR - 1.5,
-          color: highlightColor,
-        });
+      this.updateProgress(25, tr('Desenhando o selo de cera…', 'Drawing the wax seal…'));
+      const png = await drawWaxSealPng(opts.waxColor in PALETTES ? opts.waxColor : 'gold');
 
-        // Inside shading
-        page.drawCircle({
-          x: bx + 1.0,
-          y: by - 1.0,
-          size: offsetR - 2.5,
-          color: shadowColor,
-        });
+      this.updateProgress(40, tr('Criando o certificado do selo…', 'Creating the seal certificate…'));
+      const [z, id] = await Promise.all([loadZga(), sealIdentity()]);
+      if (this.checkCancelled()) return this.createErrorOutput(PDFErrorCode.PROCESSING_CANCELLED, 'Processing was cancelled.');
+
+      this.updateProgress(65, tr('Assinando o documento…', 'Signing the document…'));
+      const signOptions = {
+        p12cert: id.p12,
+        pwd: id.pwd,
+        reason: tr('Selo de cera digital (PDFCraft)', 'Digital wax seal (PDFCraft)'),
+        signame: 'SeloDeCera',
+        drawinf: {
+          area: { x, y, w: size, h: size },
+          pageidx: pageIdx,
+          imgInfo: { imgData: png, imgType: 'png' },
+        },
+      };
+      const encrypt = wantPassword
+        ? { mode: z.Crypto.Mode.AES_256, userpwd: password, permissions: ['modify', 'assemble'] }
+        : undefined;
+      const out = await zgaSign(z, signOptions, bytes, encrypt);
+
+      this.updateProgress(85, tr('Conferindo a assinatura…', 'Checking the signature…'));
+      const sigs = findPdfSignatures(out).filter((s) => s.kind === 'signature');
+      const last = sigs[sigs.length - 1];
+      const report = last ? await inspectPdfSignature(out, last) : null;
+      if (!report || !report.valid) {
+        throw new Error('signature self-check failed: ' + (report?.error || 'not found'));
       }
 
-      // Draw the flat inner stamp plate
-      page.drawCircle({
-        x: sealX,
-        y: sealY,
-        size: radius * 0.75,
-        color: baseColor,
-      });
-
-      // Shaded ring
-      page.drawCircle({
-        x: sealX + 1.5,
-        y: sealY - 1.5,
-        size: radius * 0.73,
-        color: shadowColor,
-      });
-      page.drawCircle({
-        x: sealX - 1.0,
-        y: sealY + 1.0,
-        size: radius * 0.71,
-        color: highlightColor,
-      });
-      page.drawCircle({
-        x: sealX,
-        y: sealY,
-        size: radius * 0.68,
-        color: baseColor,
-      });
-
-      // Draw Central Stamp Symbol (e.g. Shield + Key / PDFCraft Logo)
-      // We will draw a crest with lines
-      // Draw a crown/crest in the center
-      const iconSize = radius * 0.35;
-      
-      // Shield outlines
-      page.drawRectangle({
-        x: sealX - iconSize/2,
-        y: sealY - iconSize/2,
-        width: iconSize,
-        height: iconSize * 0.9,
-        borderColor: highlightColor,
-        borderWidth: 1.5,
-      });
-
-      // Shield cross
-      page.drawLine({
-        start: { x: sealX, y: sealY - iconSize/2 },
-        end: { x: sealX, y: sealY + iconSize/2 },
-        color: highlightColor,
-        thickness: 1.0,
-      });
-      page.drawLine({
-        start: { x: sealX - iconSize/2, y: sealY },
-        end: { x: sealX + iconSize/2, y: sealY },
-        color: highlightColor,
-        thickness: 1.0,
-      });
-
-      // Shield shadow line
-      page.drawRectangle({
-        x: sealX - iconSize/2 + 1,
-        y: sealY - iconSize/2 - 1,
-        width: iconSize,
-        height: iconSize * 0.9,
-        borderColor: shadowColor,
-        borderWidth: 1.0,
-      });
-
-      this.updateProgress(65, 'Creating PKCS#7 digital signature dictionaries...');
-
-      // Build official Sig (Signature) dictionaries in the PDF
-      const context = pdfDoc.context;
-
-      // Sig contents placeholder block (PKCS#7 signature stream must be preallocated)
-      // Usually 8192 bytes is standard for signatures
-      const placeholderBytes = new Uint8Array(8192);
-      const signatureDict = context.obj({
-        Type: pdfLib.PDFName.of('Sig'),
-        Filter: pdfLib.PDFName.of('Adobe.PPKLite'),
-        SubFilter: pdfLib.PDFName.of('adbe.pkcs7.detached'),
-        Contents: pdfLib.PDFString.of(String.fromCharCode(...placeholderBytes)), // Preallocate
-        Reason: pdfLib.PDFString.of('Signed officially using PDFCraft Wax-Seal cryptor.'),
-        M: pdfLib.PDFString.of(`D:${new Date().toISOString().replace(/[-T:]/g, '').split('.')[0]}Z`),
-      });
-
-      // Register Sig dictionary reference
-      const sigRef = context.register(signatureDict);
-
-      // Create Sig Field in AcroForm
-      const sigFieldDict = context.obj({
-        Type: pdfLib.PDFName.of('Annot'),
-        Subtype: pdfLib.PDFName.of('Widget'),
-        FT: pdfLib.PDFName.of('Sig'),
-        T: pdfLib.PDFString.of(`Signature_WaxSeal_${Date.now()}`),
-        V: sigRef,
-        F: 132, // Print, NoRotate, Lock
-        Rect: context.obj([sealX - radius, sealY - radius, sealX + radius, sealY + radius]),
-        P: page.ref,
-      });
-
-      const sigFieldRef = context.register(sigFieldDict);
-      page.node.set(
-        pdfLib.PDFName.of('Annots'),
-        context.obj([...(page.node.get(pdfLib.PDFName.of('Annots')) as any || []), sigFieldRef])
-      );
-
-      // Link to AcroForm
-      const acroForm = pdfDoc.catalog.get(pdfLib.PDFName.of('AcroForm')) as any;
-      if (acroForm) {
-        const fields = acroForm.get(pdfLib.PDFName.of('Fields')) || context.obj([]);
-        acroForm.set(pdfLib.PDFName.of('Fields'), context.obj([...(fields as any), sigFieldRef]));
-      } else {
-        const newAcroForm = context.obj({
-          Fields: context.obj([sigFieldRef]),
-          SigFlags: 3,
-        });
-        pdfDoc.catalog.set(pdfLib.PDFName.of('AcroForm'), newAcroForm);
-      }
-
-      this.updateProgress(80, 'Applying encryption locks to document...');
-
-      // Apply standard 256-bit AES encryption if requested
-      if (certFile || cryptorOptions.encryptWithCert) {
-        // Enforce user password to simulate certificate lockdown
-        // This provides standard enterprise encryption
-        const ownerPassword = Math.random().toString(36).substring(2, 12);
-        const userPassword = cryptorOptions.pfxPassword || 'pdfcraft';
-        
-        (pdfDoc as any).encrypt({
-          userPassword,
-          ownerPassword,
-          permissions: {
-            printing: 'highResolution',
-            modifying: 'none',
-            copying: false,
-            annotating: false,
-            fillingForms: false,
-          },
-        });
-      }
-
-      this.updateProgress(90, 'Generating signed PDF file stream...');
-      const pdfBytes = await pdfDoc.save();
-      const outputBlob = new Blob([pdfBytes as any], { type: 'application/pdf' });
-      const outputFilename = pdfFile.name.replace(/\.pdf$/i, '_signed.pdf');
-
-      this.updateProgress(100, 'Digital signature & wax seal applied!');
-      return this.createSuccessOutput(outputBlob, outputFilename, {
+      this.updateProgress(100, tr('Selo e assinatura aplicados!', 'Wax seal and signature applied!'));
+      const outputBlob = new Blob([new Uint8Array(out)], { type: 'application/pdf' });
+      return this.createSuccessOutput(outputBlob, pdfFile.name.replace(/\.pdf$/i, '_signed.pdf'), {
         signedPage: pageIdx + 1,
         certified: true,
-        encrypted: !!certFile || cryptorOptions.encryptWithCert,
+        encrypted: wantPassword,
+        openPassword: wantPassword ? password : undefined,
+        signer: id.name,
       });
-
     } catch (error) {
       return this.createErrorOutput(
         PDFErrorCode.PROCESSING_FAILED,
-        'Failed to apply certificate cryptor and wax seal.',
-        error instanceof Error ? error.message : 'Unknown error'
+        tr('Não foi possível aplicar o selo e a assinatura.', 'Failed to apply certificate cryptor and wax seal.'),
+        shortError(error)
       );
     }
   }
@@ -298,11 +357,5 @@ export async function encryptAndSignCert(
   onProgress?: ProgressCallback
 ): Promise<ProcessOutput> {
   const processor = createCertCryptorProcessor();
-  return processor.process(
-    {
-      files: [file],
-      options: options || {},
-    },
-    onProgress
-  );
+  return processor.process({ files: [file], options: options || {} }, onProgress);
 }

@@ -58,6 +58,21 @@
       "uploadFile": "Please upload a file first.",
       "conversionFailed": "Conversion failed. Please try again.",
       "unexpectedError": "An unexpected error occurred."
+    },
+    "certCryptor": {
+      "protectWithPassword": "Protect with a password to open (256-bit AES)",
+      "openPasswordLabel": "Password to open the PDF",
+      "openPasswordPlaceholder": "Empty = password pdfcraft",
+      "tapToPlace": "Tap the page to choose where the seal goes",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "previewLoading": "Loading page…",
+      "signedBy": "Digitally signed by: {name}",
+      "passwordReminder": "Password to open: {password}"
+    },
+    "smartDataRedactor": {
+      "foundCount": "{count} item(s) covered with a black box.",
+      "nothingFound": "No data of this kind was found in the PDF text (scanned pages need OCR first)."
     }
   },
   "tools": {
@@ -115,7 +130,9 @@
           "SSL": {
             "com": "SSL.com Trusted American TSA Provider"
           },
-          "FreeTSA": "FreeTSA.org Free High-grade TSA Service"
+          "FreeTSA": "FreeTSA.org Free High-grade TSA Service",
+          "Apple": "Apple timestamp server",
+          "Entrust": "Entrust timestamp authority"
         },
         "speed": {
           "fast": "Fast",
@@ -123,7 +140,9 @@
           "medium": "Medium",
           "stable": "Stable"
         }
-      }
+      },
+      "fallbackNote": "If the chosen authority does not answer, the app tries the others automatically. Internet required.",
+      "verifiedBadge": "Timestamp verified ✓"
     },
     "vectorExtractor": {
       "previewHelp": "Hover to highlight vectors in 3D, click to select.",
@@ -134,6 +153,24 @@
       "copyCode": "Copy SVG Code",
       "downloadSelected": "Download SVG Asset",
       "colorFill": "Fill color"
+    },
+    "validateSign": {
+      "signatureTitle": "Signature {n}",
+      "timestampTitle": "Timestamp {n}",
+      "validTimestamp": "Valid timestamp",
+      "selfSignedValid": "Signature intact, but the certificate is self-signed (identity not confirmed by an authority)",
+      "problemModified": "The document was changed after it was signed",
+      "problemBadSignature": "The signature does not match the certificate",
+      "problemUnsupported": "This device cannot check this type of signature",
+      "documentIntact": "Document unchanged since this signature.",
+      "laterChanges": "There are changes or newer signatures after this one (normal when there is more than one).",
+      "tsaTime": "Official timestamp time (TSA)",
+      "timestampSerial": "Timestamp serial:",
+      "documentHash": "Document hash:"
+    },
+    "removeMetadata": {
+      "xmpLabel": "XMP metadata",
+      "customLabel": "custom fields"
     }
   }
 }

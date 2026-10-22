@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   Shield,
   Eye,
@@ -43,6 +43,18 @@ import { loadPdfjs } from '@/lib/pdf/loader';
 import { PDFJS_CONFIG } from '@/lib/pdf/config';
 import { withBasePath } from '@/lib/utils/path';
 import { saveBlobFile } from '@/lib/tauri-bridge';
+
+/** nome do estilo da tarja na etiqueta */
+function styleLabel(style: string, pt: boolean): string {
+  const map: Record<string, [string, string]> = {
+    blackout: ['TARJA PRETA', 'BLACKOUT'],
+    whiteout: ['TARJA BRANCA', 'WHITEOUT'],
+    mosaic: ['MOSAICO', 'MOSAIC'],
+    blur: ['DESFOQUE', 'BLUR'],
+  };
+  const pair = map[style];
+  return pair ? (pt ? pair[0] : pair[1]) : String(style || '').toUpperCase();
+}
 import {
   redactPDF,
   renderRedactionAreaOnCanvas,
@@ -102,6 +114,9 @@ const DRAFT_COLORS = [
 
 export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
   const t = useTranslations('common');
+  // textos da tela no idioma do app
+  const isPt = useLocale().toLowerCase().startsWith('pt');
+  const L = (pt: string, en: string) => (isPt ? pt : en);
 
   // File state
   const [file, setFile] = useState<File | null>(null);
@@ -659,7 +674,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
           ctx.setLineDash([]);
           ctx.fillStyle = draftStyle.stroke;
           ctx.font = 'bold 11px sans-serif';
-          const labelText = `#${index + 1} 🖌️ ${style.toUpperCase()}`;
+          const labelText = `#${index + 1} 🖌️ ${styleLabel(style, isPt)}`;
           const textMetrics = ctx.measureText(labelText);
           const badgeW = textMetrics.width + 8;
           const badgeH = 18;
@@ -788,7 +803,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
         ctx.setLineDash([]);
         ctx.fillStyle = draftStyle.stroke;
         ctx.font = 'bold 11px sans-serif';
-        const labelText = `#${index + 1} ${style.toUpperCase()}`;
+        const labelText = `#${index + 1} ${styleLabel(style, isPt)}`;
         const textMetrics = ctx.measureText(labelText);
         const badgeW = textMetrics.width + 8;
         const badgeH = 18;
@@ -1382,7 +1397,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
     try {
       setStatus('processing');
       setProgress(5);
-      setProgressMessage('正在准备文档与安全选项...');
+      setProgressMessage(L('Preparando o documento…', 'Preparing document…'));
       setError(null);
 
       const options: RedactOptions = {
@@ -1407,7 +1422,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
       setResult(outputBlob);
       setStatus('complete');
       setProgress(100);
-      setProgressMessage('脱敏完成，正在启动下载...');
+      setProgressMessage(L('Tarja aplicada, baixando…', 'Redaction done, downloading…'));
 
       // Automatically trigger file download
       const downloadFilename = file.name
@@ -1416,7 +1431,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
       await saveBlobFile(outputBlob, downloadFilename);
     } catch (err: any) {
       console.error('Redaction failed:', err);
-      setError(err?.message || '处理脱敏 PDF 时出错');
+      setError(err?.message || L('Erro ao aplicar as tarjas no PDF', 'Error while redacting the PDF'));
       setStatus('error');
     }
   }, [file, redactions, flattenAllPages, stripMetadata, purgeAnnotations, renderScale]);
@@ -1437,22 +1452,22 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
               <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/40">
                 <Lock className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
                 <div className="text-xs">
-                  <div className="font-semibold text-foreground">不可逆物理销毁</div>
-                  <div className="text-muted-foreground mt-0.5">彻底消灭底层文字与矢量流，杜绝复制或文本提取</div>
+                  <div className="font-semibold text-foreground">{L('Apagado de verdade', 'Truly removed')}</div>
+                  <div className="text-muted-foreground mt-0.5">{L('O texto embaixo da tarja some do arquivo: não dá para copiar nem extrair', 'Text under the box is removed: it cannot be copied or extracted')}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/40">
                 <Shield className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
                 <div className="text-xs">
-                  <div className="font-semibold text-foreground">深度元数据擦除</div>
-                  <div className="text-muted-foreground mt-0.5">清空作者、标题、创建日期及 XMP 扩展隐私指纹</div>
+                  <div className="font-semibold text-foreground">{L('Metadados apagados', 'Metadata wiped')}</div>
+                  <div className="text-muted-foreground mt-0.5">{L('Autor, título, datas e XMP são removidos', 'Author, title, dates and XMP are removed')}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/40">
                 <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                 <div className="text-xs">
-                  <div className="font-semibold text-foreground">100% 本地计算</div>
-                  <div className="text-muted-foreground mt-0.5">文件无需上传至云端服务器，保障极致安全</div>
+                  <div className="font-semibold text-foreground">{L('Tudo no aparelho', '100% on device')}</div>
+                  <div className="text-muted-foreground mt-0.5">{L('O arquivo não é enviado para nenhum servidor', 'The file is never uploaded')}</div>
                 </div>
               </div>
             </div>
@@ -1476,20 +1491,20 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     variant={activeTool === 'brush' ? 'primary' : 'ghost'}
                     onClick={() => setActiveTool('brush')}
                     className="gap-1.5 text-xs h-8 font-medium"
-                    title="自由画笔涂抹模式"
+                    title={L('Pincel livre', 'Free brush')}
                   >
                     <Paintbrush className="w-3.5 h-3.5" />
-                    自由画笔
+                    {L('Pincel', 'Brush')}
                   </Button>
                   <Button
                     size="sm"
                     variant={activeTool === 'rect' ? 'primary' : 'ghost'}
                     onClick={() => setActiveTool('rect')}
                     className="gap-1.5 text-xs h-8 font-medium"
-                    title="矩形选区框选模式"
+                    title={L('Retângulo', 'Rectangle')}
                   >
                     <Square className="w-3.5 h-3.5" />
-                    矩形选区
+                    {L('Retângulo', 'Rectangle')}
                   </Button>
                 </div>
 
@@ -1504,7 +1519,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     className="gap-1.5 text-xs h-8"
                   >
                     <span className="w-3 h-3 bg-black rounded-sm border border-neutral-600 inline-block" />
-                    涂黑遮蔽
+                    {L('Tarja preta', 'Black box')}
                   </Button>
                   <Button
                     size="sm"
@@ -1513,7 +1528,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     className="gap-1.5 text-xs h-8"
                   >
                     <span className="w-3 h-3 bg-white rounded-sm border border-neutral-400 inline-block" />
-                    白条遮盖
+                    {L('Tarja branca', 'White box')}
                   </Button>
                   <Button
                     size="sm"
@@ -1522,7 +1537,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     className="gap-1.5 text-xs h-8"
                   >
                     <Sliders className="w-3.5 h-3.5" />
-                    马赛克
+                    {L('Mosaico', 'Mosaic')}
                   </Button>
                   <Button
                     size="sm"
@@ -1531,7 +1546,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     className="gap-1.5 text-xs h-8"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    高斯模糊
+                    {L('Desfoque', 'Blur')}
                   </Button>
                 </div>
               </div>
@@ -1545,7 +1560,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                   className="gap-1.5 text-xs h-8"
                 >
                   {previewMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                  {previewMode ? '正在实时预览' : '预览脱敏效果'}
+                  {previewMode ? L('Vendo como fica', 'Previewing') : L('Ver como fica', 'Preview')}
                 </Button>
 
                 <div className="flex items-center border-l border-border pl-1.5 gap-0.5">
@@ -1555,7 +1570,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     onClick={handleUndo}
                     disabled={historyIndex <= 0}
                     className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                    title="撤销 (Ctrl+Z)"
+                    title={L('Desfazer', 'Undo')}
                   >
                     <Undo2 className="w-4 h-4" />
                   </Button>
@@ -1565,7 +1580,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     onClick={handleRedo}
                     disabled={historyIndex >= history.length - 1}
                     className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                    title="重做 (Ctrl+Y)"
+                    title={L('Refazer', 'Redo')}
                   >
                     <Redo2 className="w-4 h-4" />
                   </Button>
@@ -1579,7 +1594,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     className="gap-1 text-xs text-destructive hover:bg-destructive/10 h-8 border-destructive/30"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    删除选中
+                    {L('Apagar selecionada', 'Delete selected')}
                   </Button>
                 )}
 
@@ -1590,7 +1605,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                   disabled={(redactions[currentPage] || []).length === 0}
                   className="text-xs text-muted-foreground hover:text-foreground h-8"
                 >
-                  清空本页
+                  {L('Limpar página', 'Clear page')}
                 </Button>
               </div>
             </div>
@@ -1605,13 +1620,13 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                 {/* Brush Thickness Controls (when in Brush mode) */}
                 {activeTool === 'brush' && (
                   <div className="flex items-center gap-2.5">
-                    <span className="text-muted-foreground font-medium whitespace-nowrap">画笔粗细:</span>
+                    <span className="text-muted-foreground font-medium whitespace-nowrap">{L('Espessura:', 'Size:')}</span>
                     <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/70">
                       {[
-                        { label: '细', size: 8 },
-                        { label: '中', size: 16 },
-                        { label: '粗', size: 28 },
-                        { label: '特粗', size: 44 },
+                        { label: L('Fino', 'Thin'), size: 8 },
+                        { label: L('Médio', 'Medium'), size: 16 },
+                        { label: L('Grosso', 'Thick'), size: 28 },
+                        { label: L('Extra', 'Extra'), size: 44 },
                       ].map((preset) => (
                         <button
                           key={preset.size}
@@ -1637,14 +1652,14 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                         value={brushWidth}
                         onChange={(e) => setBrushWidth(Number(e.target.value))}
                         className="w-24 cursor-pointer accent-primary"
-                        title="滑动调节画笔粗细"
+                        title={L('Espessura do pincel', 'Brush size')}
                       />
                       <span className="font-mono text-xs font-semibold w-8 text-foreground">{brushWidth}px</span>
 
                       {/* Circle Preview */}
                       <div
                         className="flex items-center justify-center w-5 h-5 rounded bg-muted/80 border border-border/80"
-                        title={`当前画笔粗细: ${brushWidth}px`}
+                        title={`${L('Espessura:', 'Size:')} ${brushWidth}px`}
                       >
                         <span
                           className="rounded-full bg-foreground inline-block"
@@ -1661,7 +1676,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                 {/* Mosaic Block Size Slider */}
                 {activeStyle === 'mosaic' && (
                   <div className={`flex items-center gap-2 ${activeTool === 'brush' ? 'pl-3 border-l border-border/70' : ''}`}>
-                    <span className="text-muted-foreground font-medium whitespace-nowrap">马赛克颗粒:</span>
+                    <span className="text-muted-foreground font-medium whitespace-nowrap">{L('Bloquinhos:', 'Block size:')}</span>
                     <input
                       type="range"
                       min="4"
@@ -1678,7 +1693,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                 {/* Blur Radius Slider */}
                 {activeStyle === 'blur' && (
                   <div className={`flex items-center gap-2 ${activeTool === 'brush' ? 'pl-3 border-l border-border/70' : ''}`}>
-                    <span className="text-muted-foreground font-medium whitespace-nowrap">模糊强度:</span>
+                    <span className="text-muted-foreground font-medium whitespace-nowrap">{L('Desfoque:', 'Blur:')}</span>
                     <input
                       type="range"
                       min="2"
@@ -1696,7 +1711,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                 {activeTool === 'rect' && activeStyle !== 'mosaic' && activeStyle !== 'blur' && (
                   <span className="text-muted-foreground text-[11px] flex items-center gap-1">
                     <span className="text-primary font-bold">💡</span>
-                    <span>按住鼠标左键在页面拖拽可绘制矩形遮盖区，点击选区可拖动或通过手柄缩放。</span>
+                    <span>{L('Arraste o dedo na página para desenhar a tarja. Toque numa tarja para mover ou mudar o tamanho.', 'Drag on the page to draw a box. Tap a box to move or resize it.')}</span>
                   </span>
                 )}
               </div>
@@ -1705,7 +1720,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
               <div className="flex items-center gap-2 ml-auto">
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Palette className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>框选标色:</span>
+                  <span>{L('Cor da marcação:', 'Marker color:')}</span>
                 </span>
                 <div className="flex items-center gap-1 bg-muted/40 px-2 py-1 rounded-lg border border-border/60">
                   {DRAFT_COLORS.map((c) => (
@@ -1719,7 +1734,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                           : 'opacity-70 hover:opacity-100 hover:scale-110'
                       }`}
                       style={{ backgroundColor: c.stroke }}
-                      title={`${c.name} 标色`}
+                      title={c.name}
                     />
                   ))}
                 </div>
@@ -1735,8 +1750,8 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
               <Card className="p-3 bg-card border border-border rounded-xl space-y-2.5">
                 <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-foreground">页面导航</span>
-                    <span className="text-[11px] text-muted-foreground">({numPages} 页)</span>
+                    <span className="text-xs font-semibold text-foreground">{L('Páginas', 'Pages')}</span>
+                    <span className="text-[11px] text-muted-foreground">({numPages})</span>
                   </div>
                   <div className="flex items-center gap-1">
                     {/* Filter Redacted Pages */}
@@ -1748,10 +1763,10 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                           ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/30'
                           : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted'
                       }`}
-                      title="仅查看已有脱敏标记的页面"
+                      title={L('Só páginas com tarja', 'Only pages with boxes')}
                     >
                       <Shield className="w-3 h-3 text-rose-500" />
-                      <span>已脱敏</span>
+                      <span>{L('Com tarja', 'Redacted')}</span>
                       <span className="font-mono font-bold">({pagesWithRedactions.length})</span>
                     </button>
 
@@ -1765,7 +1780,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                             ? 'bg-background text-foreground shadow-xs'
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
-                        title="网格视图（紧凑）"
+                        title={L('Grade', 'Grid')}
                       >
                         <LayoutGrid className="w-3.5 h-3.5" />
                       </button>
@@ -1777,7 +1792,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                             ? 'bg-background text-foreground shadow-xs'
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
-                        title="列表视图"
+                        title={L('Lista', 'List')}
                       >
                         <List className="w-3.5 h-3.5" />
                       </button>
@@ -1789,7 +1804,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                 <div className="max-h-72 overflow-y-auto pr-1">
                   {displayedPages.length === 0 ? (
                     <div className="text-center py-6 text-xs text-muted-foreground">
-                      暂无已脱敏页面
+                      {L('Nenhuma página com tarja ainda', 'No redacted pages yet')}
                     </div>
                   ) : sidebarViewMode === 'grid' ? (
                     /* Grid Mode: 4 columns of compact page chips */
@@ -1817,7 +1832,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                                     ? 'bg-rose-500 text-white shadow-xs'
                                     : 'bg-rose-500 text-white'
                                 }`}
-                                title={`第 ${p} 页有 ${count} 处脱敏`}
+                                title={`${L('Página', 'Page')} ${p}: ${count}`}
                               >
                                 {count}
                               </span>
@@ -1844,7 +1859,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                                 : 'bg-muted/40 hover:bg-muted text-foreground'
                             }`}
                           >
-                            <span>第 {p} 页</span>
+                            <span>{L('Página', 'Page')} {p}</span>
                             {count > 0 && (
                               <span
                                 className={`px-1.5 py-0.5 rounded-full text-[10px] ${
@@ -1853,7 +1868,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                                     : 'bg-rose-500/15 text-rose-500 font-semibold'
                                 }`}
                               >
-                                {count} 处脱敏
+                                {count} {L('tarja(s)', 'box(es)')}
                               </span>
                             )}
                           </button>
@@ -1867,19 +1882,19 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
               {/* 2. Redaction Statistics & Action */}
               <Card className="p-4 bg-card border border-border rounded-xl space-y-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">当前页面脱敏区:</span>
-                  <span className="font-bold text-foreground">{(redactions[currentPage] || []).length} 处</span>
+                  <span className="text-muted-foreground">{L('Tarjas nesta página:', 'Boxes on this page:')}</span>
+                  <span className="font-bold text-foreground">{(redactions[currentPage] || []).length}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">全文档总脱敏区:</span>
-                  <span className="font-bold text-primary">{totalRedactionsCount} 处</span>
+                  <span className="text-muted-foreground">{L('Tarjas no documento:', 'Boxes in document:')}</span>
+                  <span className="font-bold text-primary">{totalRedactionsCount}</span>
                 </div>
 
                 {/* In-sidebar processing progress feedback */}
                 {status === 'processing' && (
                   <div className="space-y-1.5 pt-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground truncate max-w-[170px]">{progressMessage || '正在处理中...'}</span>
+                      <span className="text-muted-foreground truncate max-w-[170px]">{progressMessage || L('Processando…', 'Processing…')}</span>
                       <span className="font-mono font-bold text-primary">{progress}%</span>
                     </div>
                     <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
@@ -1903,7 +1918,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                 {status === 'complete' && result && (
                   <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    <span>脱敏完成！已自动启动下载。</span>
+                    <span>{L('Pronto! O arquivo com as tarjas foi baixado.', 'Done! The redacted file was downloaded.')}</span>
                   </div>
                 )}
 
@@ -1921,7 +1936,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                       onClick={handleProcess}
                       className="w-full text-xs text-muted-foreground"
                     >
-                      重新生成脱敏 PDF
+                      {L('Gerar de novo', 'Generate again')}
                     </Button>
                   </div>
                 ) : (
@@ -1933,12 +1948,12 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     {status === 'processing' ? (
                       <>
                         <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                        <span>正在生成 ({progress}%)...</span>
+                        <span>{L('Gerando', 'Generating')} ({progress}%)…</span>
                       </>
                     ) : (
                       <>
                         <Download className="w-4 h-4" />
-                        <span>生成脱敏安全 PDF</span>
+                        <span>{L('Gerar PDF com tarjas', 'Create redacted PDF')}</span>
                       </>
                     )}
                   </Button>
@@ -1950,7 +1965,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                   onClick={handleClear}
                   className="w-full text-xs text-muted-foreground hover:text-foreground"
                 >
-                  更换其他文件
+                  {L('Trocar arquivo', 'Change file')}
                 </Button>
               </Card>
 
@@ -1958,7 +1973,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
               <Card className="p-4 bg-card border border-border rounded-xl space-y-3">
                 <div className="flex items-center gap-2 pb-2 border-b border-border">
                   <Shield className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-bold uppercase tracking-wider">安全与隐私加固</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">{L('Segurança e privacidade', 'Security & privacy')}</span>
                 </div>
 
                 <div className="space-y-2.5 text-xs">
@@ -1970,8 +1985,8 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                       className="mt-0.5 rounded border-muted-foreground accent-emerald-500"
                     />
                     <div>
-                      <span className="font-semibold text-foreground">物理不可逆销毁 (必选)</span>
-                      <p className="text-[11px] text-muted-foreground">脱敏区域以像素合并烧录，彻底清除底层文字与对象流</p>
+                      <span className="font-semibold text-foreground">{L('Apagar de verdade (sempre ligado)', 'Permanent removal (always on)')}</span>
+                      <p className="text-[11px] text-muted-foreground">{L('A página com tarja vira imagem: o texto coberto deixa de existir no arquivo', 'Pages with boxes become images: the covered text no longer exists in the file')}</p>
                     </div>
                   </label>
 
@@ -1983,8 +1998,8 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                       className="mt-0.5 rounded border-muted-foreground accent-primary"
                     />
                     <div>
-                      <span className="font-medium text-foreground">深度擦除元数据</span>
-                      <p className="text-[11px] text-muted-foreground">清空作者、标题、修改日期及 XMP 扩展隐私指纹</p>
+                      <span className="font-medium text-foreground">{L('Apagar metadados', 'Wipe metadata')}</span>
+                      <p className="text-[11px] text-muted-foreground">{L('Tira autor, título, datas e XMP', 'Removes author, title, dates and XMP')}</p>
                     </div>
                   </label>
 
@@ -1996,8 +2011,8 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                       className="mt-0.5 rounded border-muted-foreground accent-primary"
                     />
                     <div>
-                      <span className="font-medium text-foreground">清除残留批注与脚本</span>
-                      <p className="text-[11px] text-muted-foreground">移除浮动注释、AcroForm 脚本与潜在外链泄露</p>
+                      <span className="font-medium text-foreground">{L('Tirar comentários e scripts', 'Remove comments and scripts')}</span>
+                      <p className="text-[11px] text-muted-foreground">{L('Remove anotações, formulários e links', 'Removes annotations, forms and links')}</p>
                     </div>
                   </label>
 
@@ -2009,8 +2024,8 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                       className="mt-0.5 rounded border-muted-foreground accent-primary"
                     />
                     <div>
-                      <span className="font-medium text-foreground">全局统一栅格化</span>
-                      <p className="text-[11px] text-muted-foreground">将未涂黑页面也全部光栅化（体积增大但安全最高）</p>
+                      <span className="font-medium text-foreground">{L('Transformar todas as páginas em imagem', 'Rasterize every page')}</span>
+                      <p className="text-[11px] text-muted-foreground">{L('Mais seguro, mas o arquivo fica maior', 'Safest, but the file gets bigger')}</p>
                     </div>
                   </label>
                 </div>
@@ -2029,7 +2044,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     onClick={() => setCurrentPage(1)}
                     disabled={currentPage <= 1}
                     className="h-8 w-8 p-0"
-                    title="第一页 (Home)"
+                    title={L('Primeira página', 'First page')}
                   >
                     <ChevronFirst className="w-4 h-4" />
                   </Button>
@@ -2039,14 +2054,14 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage <= 1}
                     className="h-8 px-2 text-xs gap-1"
-                    title="上一页 (PageUp / ←)"
+                    title={L('Página anterior', 'Previous page')}
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    <span className="hidden sm:inline">上一页</span>
+                    <span className="hidden sm:inline">{L('Anterior', 'Previous')}</span>
                   </Button>
 
                   <div className="flex items-center gap-1 px-2 py-0.5 bg-background rounded-lg border border-border shadow-xs">
-                    <span className="text-muted-foreground text-xs">第</span>
+                    <span className="text-muted-foreground text-xs">{L('Pág.', 'Page')}</span>
                     <form
                       onSubmit={(e) => {
                         e.preventDefault();
@@ -2060,10 +2075,10 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                         onChange={(e) => setJumpInput(e.target.value)}
                         onBlur={() => handleJumpPage()}
                         className="w-10 h-6 text-center font-mono font-bold text-xs bg-transparent focus:outline-none focus:bg-muted/50 rounded"
-                        title="输入页码按 Enter 跳转"
+                        title={L('Número da página', 'Page number')}
                       />
                     </form>
-                    <span className="text-muted-foreground text-xs">/ {numPages} 页</span>
+                    <span className="text-muted-foreground text-xs">/ {numPages}</span>
                   </div>
 
                   <Button
@@ -2072,9 +2087,9 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
                     disabled={currentPage >= numPages}
                     className="h-8 px-2 text-xs gap-1"
-                    title="下一页 (PageDown / →)"
+                    title={L('Próxima página', 'Next page')}
                   >
-                    <span className="hidden sm:inline">下一页</span>
+                    <span className="hidden sm:inline">{L('Próxima', 'Next')}</span>
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                   <Button
@@ -2083,7 +2098,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     onClick={() => setCurrentPage(numPages)}
                     disabled={currentPage >= numPages}
                     className="h-8 w-8 p-0"
-                    title="最后一页 (End)"
+                    title={L('Última página', 'Last page')}
                   >
                     <ChevronLast className="w-4 h-4" />
                   </Button>
@@ -2096,7 +2111,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     variant="ghost"
                     onClick={() => setPageScale((s) => Math.max(0.6, Number((s - 0.2).toFixed(1))))}
                     className="h-8 w-8 p-0"
-                    title="缩小"
+                    title={L('Diminuir', 'Zoom out')}
                   >
                     <ZoomOut className="w-4 h-4" />
                   </Button>
@@ -2106,7 +2121,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     variant="ghost"
                     onClick={() => setPageScale((s) => Math.min(2.5, Number((s + 0.2).toFixed(1))))}
                     className="h-8 w-8 p-0"
-                    title="放大"
+                    title={L('Aumentar', 'Zoom in')}
                   >
                     <ZoomIn className="w-4 h-4" />
                   </Button>
@@ -2115,7 +2130,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     variant="ghost"
                     onClick={() => setPageScale(1.0)}
                     className="h-8 px-2 text-xs"
-                    title="原始尺寸 (100%)"
+                    title={L('Tamanho real (100%)', 'Actual size (100%)')}
                   >
                     100%
                   </Button>
@@ -2124,20 +2139,20 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     variant="ghost"
                     onClick={handleFitWidth}
                     className="h-8 px-2 text-xs gap-1"
-                    title="自适应页面宽度"
+                    title={L('Ajustar à largura', 'Fit width')}
                   >
                     <Maximize className="w-3.5 h-3.5" />
-                    自适应宽
+                    {L('Largura', 'Width')}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={handleFitPage}
                     className="h-8 px-2 text-xs gap-1"
-                    title="自适应整页（显示完整页面）"
+                    title={L('Página inteira', 'Whole page')}
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
-                    自适应页
+                    {L('Página', 'Page')}
                   </Button>
                 </div>
               </div>
@@ -2152,7 +2167,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-20 flex items-center justify-center">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        渲染页面中...
+                        {L('Carregando a página…', 'Rendering page…')}
                       </div>
                     </div>
                   )}
@@ -2164,13 +2179,26 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                     {/* Interactive Redaction Overlay Canvas */}
                     <canvas
                       ref={overlayCanvasRef}
-                      onMouseDown={handleMouseDown}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                      onMouseLeave={() => {
+                      // ponteiro = mouse, dedo e caneta (no celular o dedo desenha em vez de rolar a tela)
+                      onPointerDown={(e) => {
+                        if (e.pointerType !== 'mouse') {
+                          try {
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                          } catch {
+                            /* ok */
+                          }
+                        }
+                        handleMouseDown(e);
+                      }}
+                      onPointerMove={handleMouseMove}
+                      onPointerUp={handleMouseUp}
+                      onPointerCancel={handleMouseUp}
+                      onPointerLeave={(e) => {
+                        if (e.pointerType !== 'mouse') return;
                         setCursorPos(null);
                         requestAnimationFrame(drawOverlay);
                       }}
+                      style={{ touchAction: previewMode ? 'auto' : 'none' }}
                       className={`absolute inset-0 z-10 ${
                         previewMode ? 'cursor-default' : 'cursor-crosshair'
                       }`}
@@ -2186,7 +2214,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage <= 1}
                       className="absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-background/85 hover:bg-background shadow-lg backdrop-blur border border-border text-foreground transition-all opacity-40 group-hover:opacity-90 hover:!opacity-100 disabled:opacity-0 disabled:pointer-events-none hover:scale-110 active:scale-95"
-                      title="上一页 (PageUp / ←)"
+                      title={L('Página anterior', 'Previous page')}
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -2196,7 +2224,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                       onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
                       disabled={currentPage >= numPages}
                       className="absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-background/85 hover:bg-background shadow-lg backdrop-blur border border-border text-foreground transition-all opacity-40 group-hover:opacity-90 hover:!opacity-100 disabled:opacity-0 disabled:pointer-events-none hover:scale-110 active:scale-95"
-                      title="下一页 (PageDown / →)"
+                      title={L('Próxima página', 'Next page')}
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -2209,14 +2237,13 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
                 <div className="flex items-center gap-2">
                   <span>
                     {activeTool === 'brush'
-                      ? '💡 提示：按住鼠标左键可直接在 PDF 上自由涂抹遮盖，松开鼠标完成绘制。'
-                      : '💡 提示：按住鼠标左键拖拽可绘制脱敏选区，拖拽边缘手柄调整尺寸或拖动移动。'}
+                      ? L('💡 Dica: passe o dedo sobre o que quer cobrir; ao soltar, a tarja fica.', '💡 Tip: paint over what you want to cover; release to finish.')
+                      : L('💡 Dica: arraste para desenhar a tarja; use as bolinhas da borda para mudar o tamanho.', '💡 Tip: drag to draw a box; use the edge handles to resize it.')}
                   </span>
                   <span className="hidden sm:inline-block text-border">|</span>
-                  <span className="hidden sm:inline">快捷键：<kbd className="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">Del</kbd> 删除 / <kbd className="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">Ctrl+Z</kbd> 撤销 / <kbd className="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">PgUp/PgDn</kbd> 翻页</span>
                 </div>
                 <span className="font-medium">
-                  当前模式：{previewMode ? '真实脱敏预览' : activeTool === 'brush' ? '自由画笔涂抹' : '选区标定编辑'}
+                  {L('Modo: ', 'Mode: ')}{previewMode ? L('ver como fica', 'preview') : activeTool === 'brush' ? L('pincel', 'brush') : L('retângulo', 'rectangle')}
                 </span>
               </div>
             </div>
@@ -2241,9 +2268,9 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
             <CheckCircle2 className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-lg font-bold">PDF 脱敏处理已完成！</h3>
+            <h3 className="text-lg font-bold">{L('Tarjas aplicadas!', 'Redaction complete!')}</h3>
             <p className="text-xs text-muted-foreground">
-              敏感信息已被物理像素级不可逆抹除，元数据与隐私指纹均已清除。
+              {L('O que estava coberto foi apagado de vez, e os metadados também.', 'Covered content was permanently removed, and so was the metadata.')}
             </p>
           </div>
           <div className="flex justify-center gap-3 pt-2">
@@ -2253,7 +2280,7 @@ export function RedactPDFTool({ className = '' }: RedactPDFToolProps) {
               className="gap-2"
             />
             <Button variant="outline" onClick={() => setStatus('idle')}>
-              继续编辑
+              {L('Continuar editando', 'Keep editing')}
             </Button>
           </div>
         </Card>

@@ -242,45 +242,32 @@ export class ChangePermissionsProcessor extends BasePDFProcessor {
         args.push('--password=' + changeOptions.currentPassword);
       }
 
-      const shouldEncrypt = changeOptions.newUserPassword || changeOptions.newOwnerPassword;
+      const perms = changeOptions.permissions;
+      const anyRestriction =
+        !perms.allowPrinting || !perms.allowHighQualityPrinting || !perms.allowModifying || !perms.allowCopying ||
+        !perms.allowAnnotating || !perms.allowFillingForms || !perms.allowDocumentAssembly;
+      // restrições só valem com criptografia: sem senha nova, cria uma senha de dono aleatória
+      const shouldEncrypt = !!(changeOptions.newUserPassword || changeOptions.newOwnerPassword || anyRestriction);
 
       if (shouldEncrypt) {
         const finalUserPassword = changeOptions.newUserPassword || '';
-        const finalOwnerPassword = changeOptions.newOwnerPassword || '';
+        const finalOwnerPassword =
+          changeOptions.newOwnerPassword && changeOptions.newOwnerPassword !== finalUserPassword
+            ? changeOptions.newOwnerPassword
+            : anyRestriction
+              ? randomPassword()
+              : changeOptions.newOwnerPassword || finalUserPassword;
 
         args.push('--encrypt', finalUserPassword, finalOwnerPassword, '256');
-
-        const perms = changeOptions.permissions;
-
-        // Only apply restrictions if owner password is set
-        if (finalOwnerPassword) {
-          if (!perms.allowModifying) {
-            args.push('--modify=none');
-          }
-          if (!perms.allowCopying) {
-            args.push('--extract=n');
-          }
-          if (!perms.allowPrinting) {
-            args.push('--print=none');
-          }
-          if (!perms.allowAnnotating) {
-            args.push('--annotate=n');
-          }
-          if (!perms.allowDocumentAssembly) {
-            args.push('--assemble=n');
-          }
-          if (!perms.allowFillingForms) {
-            args.push('--form=n');
-          }
-          if (!perms.allowContentAccessibility) {
-            args.push('--accessibility=n');
-          }
-        } else if (finalUserPassword) {
-          // User password only, allow insecure
-          args.push('--allow-insecure');
-        }
+        if (!perms.allowModifying) args.push('--modify=none');
+        if (!perms.allowCopying) args.push('--extract=n');
+        if (!perms.allowPrinting) args.push('--print=none');
+        else if (!perms.allowHighQualityPrinting) args.push('--print=low');
+        if (!perms.allowAnnotating) args.push('--annotate=n');
+        if (!perms.allowDocumentAssembly) args.push('--assemble=n');
+        if (!perms.allowFillingForms) args.push('--form=n');
       } else {
-        // No new passwords - decrypt the PDF
+        // sem senha nova e sem restrições: tira a proteção
         args.push('--decrypt');
       }
 
@@ -334,6 +321,13 @@ export class ChangePermissionsProcessor extends BasePDFProcessor {
             errorMessage.includes('wrong password') ||
             errorMessage.includes('password')
           ) {
+            if (!changeOptions.currentPassword) {
+              return this.createErrorOutput(
+                PDFErrorCode.PDF_ENCRYPTED,
+                'PASSWORD_REQUIRED',
+                'This PDF is password-protected. Please enter the current password to proceed.'
+              );
+            }
             return this.createErrorOutput(
               PDFErrorCode.PDF_ENCRYPTED,
               'INVALID_PASSWORD',
@@ -358,8 +352,10 @@ export class ChangePermissionsProcessor extends BasePDFProcessor {
         // If no specific error found, assume password error for encrypted PDFs
         return this.createErrorOutput(
           PDFErrorCode.PDF_ENCRYPTED,
-          'INVALID_PASSWORD',
-          'The current password you entered is incorrect. Please check and try again.'
+          changeOptions.currentPassword ? 'INVALID_PASSWORD' : 'PASSWORD_REQUIRED',
+          changeOptions.currentPassword
+            ? 'The current password you entered is incorrect. Please check and try again.'
+            : 'This PDF is password-protected. Please enter the current password to proceed.'
         );
       }
 
@@ -398,7 +394,7 @@ export class ChangePermissionsProcessor extends BasePDFProcessor {
         originalSize,
         newSize,
         permissions: changeOptions.permissions,
-        encrypted: shouldEncrypt,
+        encrypted: !!shouldEncrypt,
         encryptionMethod: shouldEncrypt ? '256-bit AES' : undefined,
       });
 
@@ -431,6 +427,13 @@ export class ChangePermissionsProcessor extends BasePDFProcessor {
   protected getAcceptedTypes(): string[] {
     return ['application/pdf'];
   }
+}
+
+/** senha aleatória para a senha de dono */
+function randomPassword(): string {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**

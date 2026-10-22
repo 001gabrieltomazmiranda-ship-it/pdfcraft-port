@@ -14,6 +14,7 @@ import { PDFErrorCode } from '@/types/pdf';
 import { BasePDFProcessor } from '../processor';
 import { loadPdfLib, loadPdfjs } from '../loader';
 import { redactPDF, type RedactionArea } from './redact';
+import { buildPageIndex, boxesForRange, escapeRegExp } from '../text-search';
 
 export interface SmartRedactOptions {
   patterns: ('email' | 'phone' | 'idcard' | 'custom')[];
@@ -27,10 +28,24 @@ const DEFAULT_OPTIONS: SmartRedactOptions = {
   redactColor: { r: 0, g: 0, b: 0 }, // Black
 };
 
-const REGEX_PATTERNS = {
-  email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
-  phone: /(?:\+?\d{1,3}[- ]?)?\(?\d{3}\)?[- ]?\d{3}[- ]?\d{4}/g,
-  idcard: /\d{17}[\dXx]|\d{3}-\d{2}-\d{4}/g, // Generic 18-digit ID or SSN
+// Padrões (Brasil e internacionais)
+const REGEX_PATTERNS: Record<'email' | 'phone' | 'idcard', RegExp[]> = {
+  email: [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g],
+  phone: [
+    // Brasil: (11) 98765-4321, 11 98765 4321, +55 21 3456-7890, (11) 987654321
+    /(?<![\d])(?:\+?55[\s.-]?)?(?:\(\d{2}\)|\d{2})[\s.-]?(?:9[\s.]?)?\d{4}[\s.-]\d{4}(?!\d)/g,
+    /(?<![\d])(?:\+?55[\s.-]?)?\(\d{2}\)[\s]?9?\d{8}(?!\d)/g,
+    // internacional / EUA: +1 (555) 123-4567, 555-123-4567
+    /(?<![\d])(?:\+\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}(?!\d)/g,
+  ],
+  idcard: [
+    /(?<!\d)\d{3}\.\d{3}\.\d{3}-\d{2}(?!\d)/g, // CPF
+    /(?<!\d)\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}(?!\d)/g, // CNPJ
+    /CPF[:\s]*\d{11}(?!\d)/gi, // CPF sem pontos
+    /(?<!\d)\d{1,2}\.\d{3}\.\d{3}-[\dXx](?![\dA-Za-z])/g, // RG
+    /(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)/g, // SSN
+    /(?<!\d)\d{17}[\dXx](?![\dA-Za-z])/g, // documento de 18 dígitos
+  ],
 };
 
 interface MatchBox {
@@ -73,8 +88,11 @@ export class SmartDataRedactorProcessor extends BasePDFProcessor {
       
       // Load both PDFJS and PDF-Lib docs
       const pdfjsDoc = await pdfjs.getDocument({ data: fileBytes.slice(0) }).promise;
-      const pdfLibDoc = await pdfLib.PDFDocument.load(fileBytes);
-      const totalPages = pdfLibDoc.getPageCount();
+      const pdfLibDoc = await pdfLib.PDFDocument.load(fileBytes, { ignoreEncryption: true, updateMetadata: false });
+      if (pdfLibDoc.isEncrypted) {
+        return this.createErrorOutput(PDFErrorCode.PDF_ENCRYPTED, 'The PDF file is encrypted.', 'Please decrypt the file first.');
+      }
+      const totalPages = pdfjsDoc.numPages;
 
       const progressInterval = 70 / totalPages;
       const redactionAreas: RedactionArea[] = [];
@@ -84,68 +102,57 @@ export class SmartDataRedactorProcessor extends BasePDFProcessor {
             .join('')
         : '#000000';
 
+      // termos personalizados: texto literal, sem diferenciar maiúsculas
+      const customRegexes = (redactOptions.patterns.includes('custom') ? redactOptions.customKeywords || [] : [])
+        .map((k) => k.trim())
+        .filter(Boolean)
+        .map((k) => new RegExp(k.split(/\s+/).map(escapeRegExp).join('\\s+'), 'giu'));
+      const regexes: RegExp[] = [
+        ...redactOptions.patterns.flatMap((p) => (p === 'custom' ? [] : REGEX_PATTERNS[p] || [])),
+        ...customRegexes,
+      ];
+
       for (let i = 1; i <= totalPages; i++) {
         this.updateProgress(15 + (i - 1) * progressInterval, `Scanning & analyzing page ${i}...`);
-
         const pdfjsPage = await pdfjsDoc.getPage(i);
-        const pdfLibPage = pdfLibDoc.getPage(i - 1);
-        const { width: pageWidth, height: pageHeight } = pdfLibPage.getSize();
+        const index = await buildPageIndex(pdfjsPage);
+        if (!index.text) continue;
 
-        // Extract text items with coordinates
-        const textContent = await pdfjsPage.getTextContent();
-
-        // Build simple lines of text to perform regex
-        for (const item of textContent.items) {
-          if (!('str' in item)) continue;
-          
-          const text = item.str;
-          const transform = item.transform; // [scaleX, skewY, skewX, scaleY, translateX, translateY]
-          
-          // Check patterns
-          let isMatch = false;
-          for (const pattern of redactOptions.patterns) {
-            if (pattern === 'custom' && redactOptions.customKeywords) {
-              for (const keyword of redactOptions.customKeywords) {
-                if (keyword && text.toLowerCase().includes(keyword.toLowerCase())) {
-                  isMatch = true;
-                  break;
-                }
-              }
-            } else if (pattern !== 'custom') {
-              const regex = REGEX_PATTERNS[pattern];
-              regex.lastIndex = 0;
-              if (regex.test(text)) {
-                isMatch = true;
-              }
+        // trechos encontrados (sem repetir o mesmo trecho por dois padrões)
+        const ranges: [number, number][] = [];
+        for (const re of regexes) {
+          const rx = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+          let m: RegExpExecArray | null;
+          while ((m = rx.exec(index.text)) !== null) {
+            if (!m[0].length) {
+              rx.lastIndex++;
+              continue;
             }
+            ranges.push([m.index, m.index + m[0].length]);
           }
+        }
+        ranges.sort((x, y) => x[0] - y[0]);
+        const merged: [number, number][] = [];
+        for (const r of ranges) {
+          const last = merged[merged.length - 1];
+          if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+          else merged.push([r[0], r[1]]);
+        }
 
-          if (isMatch) {
-            // Coordinate mapping (PDFJS transform coordinates are bottom-left oriented)
-            const x = transform[4];
-            const y = transform[5];
-            const height = transform[3] || item.height || 12;
-            const width = item.width || (text.length * height * 0.6);
-
-            const pad = 2;
-            const canvasX = Math.max(0, x - pad);
-            const canvasY = Math.max(0, pageHeight - y - height - pad);
-            const canvasW = width + pad * 2;
-            const canvasH = height + pad * 2;
-
+        for (const [start, end] of merged) {
+          for (const box of boxesForRange(index, start, end, 2)) {
             redactionAreas.push({
               id: `smart-${i}-${redactionAreas.length}`,
               type: 'rect',
               page: i,
-              x: canvasX,
-              y: canvasY,
-              width: canvasW,
-              height: canvasH,
-              pageWidth,
-              pageHeight,
+              x: Math.max(0, box.x),
+              y: Math.max(0, index.height - box.y - box.height),
+              width: box.width,
+              height: box.height,
+              pageWidth: index.width,
+              pageHeight: index.height,
               style: redactOptions.redactColor ? 'custom-color' : 'blackout',
               color: hexColor,
-              label: '[REDACTED]',
             });
           }
         }
@@ -170,9 +177,9 @@ export class SmartDataRedactorProcessor extends BasePDFProcessor {
         );
         outputBlob = new Blob([finalPdfBytes as unknown as BlobPart], { type: 'application/pdf' });
       } else {
-        this.updateProgress(95, 'No sensitive data found, generating clean PDF...');
-        const pdfBytes = await pdfLibDoc.save({ useObjectStreams: true });
-        outputBlob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+        // nada encontrado: devolve o arquivo como estava
+        this.updateProgress(95, 'No sensitive data found');
+        outputBlob = new Blob([new Uint8Array(fileBytes)], { type: 'application/pdf' });
       }
 
       this.updateProgress(100, 'Complete!');

@@ -27,6 +27,7 @@ export function SmartDataRedactorTool({ className = '' }: SmartDataRedactorToolP
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
+  const [foundCount, setFoundCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cancelledRef = useRef(false);
 
@@ -81,6 +82,7 @@ export function SmartDataRedactorTool({ className = '' }: SmartDataRedactorToolP
 
       if (output.success && output.result) {
         setResultBlob(output.result as Blob);
+        setFoundCount(typeof output.metadata?.redactionsApplied === 'number' ? (output.metadata.redactionsApplied as number) : null);
         setStatus('complete');
       } else {
         setError(output.error?.message || 'Failed to apply automatic redaction.');
@@ -97,6 +99,7 @@ export function SmartDataRedactorTool({ className = '' }: SmartDataRedactorToolP
   const handleClear = () => {
     setFile(null);
     setResultBlob(null);
+    setFoundCount(null);
     setStatus('idle');
   };
 
@@ -222,6 +225,11 @@ export function SmartDataRedactorTool({ className = '' }: SmartDataRedactorToolP
               </div>
 
               <div className="pt-6 border-t border-zinc-150 dark:border-zinc-800 mt-6">
+                {status === 'complete' && resultBlob && foundCount !== null && (
+                  <p className={`mb-3 text-sm font-medium ${foundCount > 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                    {foundCount > 0 ? t('smartDataRedactor.foundCount', { count: foundCount }) : t('smartDataRedactor.nothingFound')}
+                  </p>
+                )}
                 {status === 'complete' && resultBlob ? (
                   <DownloadButton
                     file={resultBlob}

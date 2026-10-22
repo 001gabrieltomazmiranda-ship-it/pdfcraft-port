@@ -71,6 +71,26 @@
       "uploadFile": "Envie um arquivo primeiro.",
       "conversionFailed": "A conversão falhou. Tente novamente.",
       "unexpectedError": "Ocorreu um erro inesperado."
+    },
+    "certCryptor": {
+      "protectWithPassword": "Proteger com senha para abrir (AES de 256 bits)",
+      "openPasswordLabel": "Senha para abrir o PDF",
+      "openPasswordPlaceholder": "Em branco = senha pdfcraft",
+      "tapToPlace": "Toque na página para escolher onde fica o selo",
+      "previousPage": "Página anterior",
+      "nextPage": "Próxima página",
+      "previewLoading": "Carregando a página…",
+      "signedBy": "Assinado digitalmente por: {name}",
+      "passwordReminder": "Senha para abrir: {password}"
+    },
+    "smartDataRedactor": {
+      "foundCount": "{count} trecho(s) coberto(s) com tarja preta.",
+      "nothingFound": "Nenhum dado desse tipo foi encontrado no texto do PDF (páginas escaneadas como imagem precisam de OCR antes).",
+      "idRedactLabel": "Filtrar documentos (CPF, CNPJ, RG)",
+      "phoneRedactLabel": "Filtrar números de telefone"
+    },
+    "pdfSignatureAnchorHelper": {
+      "anchorLabelDefault": "Assine aqui"
     }
   },
   "tools": {
@@ -130,20 +150,22 @@
       "processButton": "Carimbo de data e hora confiável",
       "waitingTitle": "Aguardando Selo Criptográfico",
       "waitingDescription": "Fazendo upload de fluxos de hash. Gerando carimbos de data/hora RFC 3161 oficiais.",
-      "certificateTitle": "Certificado oficial de carimbo de data / hora TSA",
-      "tsaTime": "Hora Certificada Atômica TSA (UTC)",
-      "fileHash": "Soma de verificação de hash criptográfico SHA-256",
-      "authority": "Emissor de autoridade TSA",
-      "serialNumber": "Série de token de carimbo de data/hora TSA",
+      "certificateTitle": "Carimbo de tempo RFC 3161 aplicado",
+      "tsaTime": "Hora oficial do carimbo (TSA)",
+      "fileHash": "Resumo SHA-256 do documento",
+      "authority": "Autoridade (TSA)",
+      "serialNumber": "Número de série do carimbo",
       "tsa": {
         "desc": {
           "MeSign": "Autoridade confiável MeSign TSA",
-          "DigiCert": "Nó criptográfico de PKI global DigiCert TSA",
-          "Sectigo": "Servidor de relógio atômico Sectigo TSA Comodo",
+          "DigiCert": "Autoridade de carimbo de tempo DigiCert (reconhecida pelo Adobe)",
+          "Sectigo": "Autoridade de carimbo de tempo Sectigo",
           "SSL": {
-            "com": "Provedor americano confiável de TSA SSL.com"
+            "com": "Autoridade de carimbo de tempo SSL.com"
           },
-          "FreeTSA": "FreeTSA.org Serviço TSA gratuito de alta qualidade"
+          "FreeTSA": "FreeTSA.org, serviço gratuito",
+          "Apple": "Servidor de carimbo de tempo da Apple",
+          "Entrust": "Autoridade de carimbo de tempo Entrust"
         },
         "speed": {
           "fast": "Rápido",
@@ -151,7 +173,9 @@
           "medium": "Médio",
           "stable": "Estável"
         }
-      }
+      },
+      "fallbackNote": "Se a autoridade escolhida não responder, o app tenta as outras sozinho. Precisa de internet.",
+      "verifiedBadge": "Carimbo conferido ✓"
     },
     "vectorExtractor": {
       "previewHelp": "Passe o mouse para destacar vetores em 3D e clique para selecionar.",
@@ -162,6 +186,33 @@
       "copyCode": "Copiar código SVG",
       "downloadSelected": "Baixar recurso SVG",
       "colorFill": "Cor de preenchimento"
+    },
+    "certCryptor": {
+      "successMessage": "Selo de cera e assinatura digital aplicados!"
+    },
+    "validateSign": {
+      "signedOn": "Assinado em",
+      "signatureTitle": "Assinatura {n}",
+      "timestampTitle": "Carimbo de tempo {n}",
+      "validTimestamp": "Carimbo de tempo válido",
+      "selfSignedValid": "Assinatura íntegra, mas o certificado é autoassinado (identidade não confirmada por uma autoridade)",
+      "problemModified": "O documento foi alterado depois de assinado",
+      "problemBadSignature": "A assinatura não confere com o certificado",
+      "problemUnsupported": "Este aparelho não consegue conferir este tipo de assinatura",
+      "documentIntact": "Documento sem alterações desde esta assinatura.",
+      "laterChanges": "Houve alterações ou novas assinaturas depois desta (normal quando há mais de uma).",
+      "tsaTime": "Hora oficial do carimbo (TSA)",
+      "timestampSerial": "Série do carimbo:",
+      "documentHash": "Resumo do documento:",
+      "noSignaturesDescription": "Este PDF não tem assinaturas digitais nem carimbos de tempo."
+    },
+    "removeMetadata": {
+      "xmpLabel": "metadados XMP",
+      "customLabel": "campos extras",
+      "producer": "Programa (produtor)"
+    },
+    "changePermissions": {
+      "info": "Nota: as restrições só valem com o PDF protegido. Se você não definir uma senha de proprietário, o app cria uma aleatória e as restrições continuam valendo (em leitores que respeitam permissões, como o Adobe)."
     }
   }
 }

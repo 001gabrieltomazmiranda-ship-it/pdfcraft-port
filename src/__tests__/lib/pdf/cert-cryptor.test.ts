@@ -1,75 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   CertCryptorProcessor,
   createCertCryptorProcessor,
-  encryptAndSignCert
+  encryptAndSignCert,
 } from '@/lib/pdf/processors/cert-cryptor';
 import { PDFErrorCode } from '@/types/pdf';
 
-// Mock loader
-vi.mock('@/lib/pdf/loader', () => {
-  const mockPdfName = {
-    of: (name: string) => ({ name, isPDFName: true }),
-  };
-
-  const mockPdfString = {
-    of: (str: string) => ({ value: str, isPDFString: true }),
-  };
-
-  const mockPage = {
-    ref: {},
-    node: {
-      get: vi.fn(),
-      set: vi.fn(),
-    },
-    getWidth: () => 600,
-    getHeight: () => 800,
-    drawCircle: vi.fn(),
-    drawRectangle: vi.fn(),
-    drawLine: vi.fn(),
-  };
-
-  const mockPdfLib = {
-    PDFName: mockPdfName,
-    PDFString: mockPdfString,
-    rgb: (r: number, g: number, b: number) => ({ r, g, b }),
-    PDFDocument: {
-      load: vi.fn().mockImplementation(async () => {
-        return {
-          getPageCount: () => 3,
-          getPage: () => mockPage,
-          catalog: {
-            get: vi.fn(),
-            set: vi.fn(),
-          },
-          context: {
-            obj: (props: any) => props,
-            register: (obj: any) => obj,
-          },
-          encrypt: vi.fn(),
-          save: vi.fn().mockResolvedValue(new Uint8Array([4, 4, 4])),
-        };
-      }),
-    },
-  };
-
-  return {
-    loadPdfLib: vi.fn().mockResolvedValue(mockPdfLib),
-  };
-});
-
+// A assinatura de verdade (selo + PKCS#7 + AES-256) é testada no navegador,
+// porque precisa de canvas e WebCrypto. Aqui ficam só as validações de entrada.
 describe('CertCryptorProcessor', () => {
-  let mockFile: File;
-
-  beforeEach(() => {
-    mockFile = {
-      name: 'diploma.pdf',
-      size: 300,
-      type: 'application/pdf',
-      arrayBuffer: async () => new ArrayBuffer(300),
-    } as any;
-  });
-
   it('should instantiate cert cryptor processor correctly', () => {
     const processor = createCertCryptorProcessor();
     expect(processor).toBeInstanceOf(CertCryptorProcessor);
@@ -82,16 +21,14 @@ describe('CertCryptorProcessor', () => {
     expect(result.error?.code).toBe(PDFErrorCode.INVALID_OPTIONS);
   });
 
-  it('should sign and encrypt document with wax seal stamp successfully', async () => {
-    const result = await encryptAndSignCert(mockFile, {
-      waxColor: 'gold',
-      encryptWithCert: true,
-      pfxPassword: 'secretpassword',
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.filename).toBe('diploma_signed.pdf');
-    expect(result.metadata?.certified).toBe(true);
-    expect(result.metadata?.encrypted).toBe(true);
+  it('should reject a file that is not a PDF', async () => {
+    const notPdf = {
+      name: 'nota.pdf',
+      size: 5,
+      type: 'application/pdf',
+      arrayBuffer: async () => new TextEncoder().encode('hello').buffer,
+    } as unknown as File;
+    const result = await encryptAndSignCert(notPdf, { waxColor: 'gold' });
+    expect(result.success).toBe(false);
   });
 });

@@ -3,6 +3,8 @@ use std::env;
 use std::fs;
 use tauri_plugin_dialog::DialogExt;
 
+mod net;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemPrinter {
     pub name: String,
@@ -99,6 +101,33 @@ fn print_pdf_file(_data: Vec<u8>, _printer_name: Option<String>) -> Result<(), S
     Err("Printing is not supported on Android yet".to_string())
 }
 
+#[derive(Debug, Serialize)]
+pub struct HttpReply {
+    pub status: u16,
+    pub content_type: String,
+    pub body: Vec<u8>,
+}
+
+/// Pedido HTTP feito pelo app (sem CORS). Usado para o carimbo de tempo (TSA).
+#[tauri::command]
+async fn http_request(
+    method: String,
+    url: String,
+    headers: Option<std::collections::HashMap<String, String>>,
+    body: Option<Vec<u8>>,
+    timeout: Option<u64>,
+) -> Result<HttpReply, String> {
+    let headers: Vec<(String, String)> = headers.unwrap_or_default().into_iter().collect();
+    let body = body.unwrap_or_default();
+    let millis = timeout.unwrap_or(30000).clamp(1000, 120000);
+    let reply = net::request(&method, &url, &headers, &body, std::time::Duration::from_millis(millis))?;
+    Ok(HttpReply {
+        status: reply.status,
+        content_type: reply.content_type,
+        body: reply.body,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -112,7 +141,8 @@ pub fn run() {
             get_temp_dir,
             open_url,
             get_system_printers,
-            print_pdf_file
+            print_pdf_file,
+            http_request
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

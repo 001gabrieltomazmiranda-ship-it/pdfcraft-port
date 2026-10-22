@@ -15,6 +15,7 @@ import type {
 import { PDFErrorCode } from '@/types/pdf';
 import { BasePDFProcessor } from '../processor';
 import { loadPdfLib } from '../loader';
+import { tr } from '../ui-lang';
 
 /**
  * Remove Metadata options
@@ -108,8 +109,10 @@ export class RemoveMetadataProcessor extends BasePDFProcessor {
       // Load the source PDF
       let sourcePdf;
       try {
+        // updateMetadata: false = não escrever "pdf-lib" nem datas novas no arquivo
         sourcePdf = await pdfLib.PDFDocument.load(arrayBuffer, {
           ignoreEncryption: true,
+          updateMetadata: false,
         });
       } catch (error) {
         if (error instanceof Error && error.message.includes('encrypt')) {
@@ -141,56 +144,86 @@ export class RemoveMetadataProcessor extends BasePDFProcessor {
         );
       }
 
+      if (sourcePdf.isEncrypted) {
+        return this.createErrorOutput(
+          PDFErrorCode.PDF_ENCRYPTED,
+          tr('Este PDF tem senha. Use "Remover senha" primeiro.', 'The PDF file is encrypted.'),
+          tr('Remova a senha e tente de novo.', 'Please decrypt the file before removing metadata.')
+        );
+      }
+
       // Store original metadata for reporting
+      const safe = <T,>(fn: () => T, fallback: T): T => {
+        try {
+          return fn();
+        } catch {
+          return fallback;
+        }
+      };
       const originalMetadata = {
-        title: sourcePdf.getTitle() || '',
-        author: sourcePdf.getAuthor() || '',
-        subject: sourcePdf.getSubject() || '',
-        keywords: sourcePdf.getKeywords() || '',
-        creator: sourcePdf.getCreator() || '',
-        producer: sourcePdf.getProducer() || '',
-        creationDate: sourcePdf.getCreationDate()?.toISOString() || '',
-        modificationDate: sourcePdf.getModificationDate()?.toISOString() || '',
+        title: safe(() => sourcePdf.getTitle() || '', ''),
+        author: safe(() => sourcePdf.getAuthor() || '', ''),
+        subject: safe(() => sourcePdf.getSubject() || '', ''),
+        keywords: safe(() => sourcePdf.getKeywords() || '', ''),
+        creator: safe(() => sourcePdf.getCreator() || '', ''),
+        producer: safe(() => sourcePdf.getProducer() || '', ''),
+        creationDate: safe(() => sourcePdf.getCreationDate()?.toISOString() || '', ''),
+        modificationDate: safe(() => sourcePdf.getModificationDate()?.toISOString() || '', ''),
       };
 
       // Track what was removed
       const removedFields: string[] = [];
 
-      this.updateProgress(50, 'Removing metadata...');
+      this.updateProgress(50, tr('Removendo metadados…', 'Removing metadata...'));
 
-      // Remove metadata based on options
-      if (removeOptions.removeTitle && originalMetadata.title) {
-        sourcePdf.setTitle('');
-        removedFields.push('title');
+      // Apaga as chaves do dicionário de informações (em vez de deixar vazias)
+      const { PDFName, PDFDict } = pdfLib;
+      const ctx = sourcePdf.context;
+      const infoRef = ctx.trailerInfo.Info;
+      const info = infoRef ? ctx.lookup(infoRef) : undefined;
+      const keys: [keyof RemoveMetadataOptions, string, string][] = [
+        ['removeTitle', 'Title', 'title'],
+        ['removeAuthor', 'Author', 'author'],
+        ['removeSubject', 'Subject', 'subject'],
+        ['removeKeywords', 'Keywords', 'keywords'],
+        ['removeCreator', 'Creator', 'creator'],
+        ['removeProducer', 'Producer', 'producer'],
+        ['removeCreationDate', 'CreationDate', 'creationDate'],
+        ['removeModificationDate', 'ModDate', 'modificationDate'],
+      ];
+      if (info instanceof PDFDict) {
+        for (const [opt, key, label] of keys) {
+          if (!removeOptions[opt]) continue;
+          if (info.has(PDFName.of(key))) {
+            info.delete(PDFName.of(key));
+            removedFields.push(label);
+          }
+        }
+        // chaves extras (personalizadas) saem quando tudo foi marcado
+        const all = keys.every(([opt]) => removeOptions[opt]);
+        if (all) {
+          for (const k of info.keys()) {
+            info.delete(k);
+            if (!removedFields.includes('custom')) removedFields.push('custom');
+          }
+        }
       }
 
-      if (removeOptions.removeAuthor && originalMetadata.author) {
-        sourcePdf.setAuthor('');
-        removedFields.push('author');
+      // O XMP (catálogo /Metadata) repete título, autor, programa e datas: sai junto
+      const anyRemoved = keys.some(([opt]) => removeOptions[opt]);
+      if (anyRemoved) {
+        const catalog = sourcePdf.catalog;
+        if (catalog.has(PDFName.of('Metadata'))) {
+          catalog.delete(PDFName.of('Metadata'));
+          removedFields.push('xmp');
+        }
+        // e o mesmo nas páginas
+        for (const page of sourcePdf.getPages()) {
+          if (page.node.has(PDFName.of('Metadata'))) page.node.delete(PDFName.of('Metadata'));
+          if (page.node.has(PDFName.of('PieceInfo'))) page.node.delete(PDFName.of('PieceInfo'));
+        }
+        if (catalog.has(PDFName.of('PieceInfo'))) catalog.delete(PDFName.of('PieceInfo'));
       }
-
-      if (removeOptions.removeSubject && originalMetadata.subject) {
-        sourcePdf.setSubject('');
-        removedFields.push('subject');
-      }
-
-      if (removeOptions.removeKeywords && originalMetadata.keywords) {
-        sourcePdf.setKeywords([]);
-        removedFields.push('keywords');
-      }
-
-      if (removeOptions.removeCreator && originalMetadata.creator) {
-        sourcePdf.setCreator('');
-        removedFields.push('creator');
-      }
-
-      if (removeOptions.removeProducer && originalMetadata.producer) {
-        sourcePdf.setProducer('');
-        removedFields.push('producer');
-      }
-
-      // Note: pdf-lib doesn't support removing creation/modification dates directly
-      // They will be updated when saving
 
       if (this.checkCancelled()) {
         return this.createErrorOutput(

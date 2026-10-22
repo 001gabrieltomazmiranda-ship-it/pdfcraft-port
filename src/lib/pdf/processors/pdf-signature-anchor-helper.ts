@@ -26,7 +26,7 @@ export class PdfSignatureAnchorHelperProcessor extends BasePDFProcessor {
       anchorX: 0.8,
       anchorY: 0.8,
       pageNumber: 1,
-      anchorLabel: 'Sign Here / 此处签字',
+      anchorLabel: 'Sign Here',
       ...(options as Partial<PdfSignatureAnchorHelperOptions>),
     };
 
@@ -45,7 +45,10 @@ export class PdfSignatureAnchorHelperProcessor extends BasePDFProcessor {
 
       this.updateProgress(30, 'Reading PDF structure...');
       const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await pdfLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+      const pdfDoc = await pdfLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true, updateMetadata: false });
+      if (pdfDoc.isEncrypted) {
+        return this.createErrorOutput(PDFErrorCode.PDF_ENCRYPTED, 'The PDF file is encrypted.', 'Please decrypt the file first.');
+      }
       const pageCount = pdfDoc.getPageCount();
 
       const pageIdx = anchorOptions.pageNumber - 1;
@@ -66,7 +69,21 @@ export class PdfSignatureAnchorHelperProcessor extends BasePDFProcessor {
       const ptY = height - (anchorOptions.anchorY * height);
 
       // Anchor stamp dimensions
-      const stampW = 120;
+      const font = await pdfDoc.embedFont(pdfLib.StandardFonts.HelveticaBold);
+      const labelFontSize = 9;
+      // a fonte padrão só escreve letras do alfabeto latino: o resto vira "?"
+      let charset: Set<number> | null = null;
+      try {
+        charset = new Set<number>(font.getCharacterSet());
+      } catch {
+        charset = null;
+      }
+      const label = Array.from(anchorOptions.anchorLabel || 'Sign Here')
+        .map((ch) => (!charset || charset.has(ch.codePointAt(0) || 0) ? ch : '?'))
+        .join('')
+        .replace(/\s+/g, ' ')
+        .trim() || 'Sign Here';
+      const stampW = Math.max(120, font.widthOfTextAtSize(label, labelFontSize) + 42);
       const stampH = 30;
 
       const { rgb } = pdfLib;
@@ -92,9 +109,7 @@ export class PdfSignatureAnchorHelperProcessor extends BasePDFProcessor {
       });
 
       // Label text
-      const font = await pdfDoc.embedFont(pdfLib.StandardFonts.HelveticaBold);
-      const labelFontSize = 9;
-      page.drawText(anchorOptions.anchorLabel, {
+      page.drawText(label, {
         x: ptX - stampW / 2 + 30,
         y: ptY - 3,
         size: labelFontSize,

@@ -14,6 +14,7 @@ vi.mock('@/lib/pdf/loader', () => {
           numPages: 1,
           getPage: vi.fn().mockImplementation(async () => {
             return {
+              getViewport: () => ({ width: 600, height: 800, convertToViewportPoint: (x: number, y: number) => [x, 800 - y] }),
               getTextContent: () => Promise.resolve({
                 items: [
                   { str: 'test@example.com', transform: [12, 0, 0, 12, 100, 200] },
@@ -46,6 +47,7 @@ vi.mock('@/lib/pdf/loader', () => {
     PDFDocument: {
       load: vi.fn().mockImplementation(async () => {
         return {
+          isEncrypted: false,
           getPageCount: () => 1,
           getPage: () => mockPage,
           context: {

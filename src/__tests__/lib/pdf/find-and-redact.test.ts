@@ -9,7 +9,7 @@ import {
 
 vi.mock('@/lib/pdf/loader', () => {
   const mockPage = {
-    getViewport: vi.fn().mockReturnValue({ width: 612, height: 792 }),
+    getViewport: vi.fn().mockReturnValue({ width: 612, height: 792, convertToViewportPoint: (x: number, y: number) => [x, 792 - y] }),
     getTextContent: vi.fn().mockResolvedValue({
       items: [
         {

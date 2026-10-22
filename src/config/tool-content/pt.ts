@@ -2195,6 +2195,71 @@ export const toolContentPt: Record<string, ToolContent> = {
       }
     ]
   },
+  "redact-pdf": {
+    "title": "Tarjar PDF",
+    "metaDescription": "Cubra de vez informações sensíveis no PDF com tarja preta, branca, mosaico ou desfoque. O que fica embaixo é apagado do arquivo.",
+    "keywords": [
+      "tarjar pdf",
+      "ocultar dados pdf",
+      "tarja preta pdf",
+      "censurar pdf",
+      "redigir pdf"
+    ],
+    "description": "\n      <p>Desenhe tarjas sobre nomes, documentos, assinaturas ou qualquer informação que não pode aparecer. Escolha tarja preta, branca, mosaico ou desfoque.</p>\n      <p>As páginas com tarja viram imagem: o texto coberto deixa de existir no arquivo e não dá para copiar nem recuperar. Os metadados também são apagados. Tudo acontece no aparelho, sem enviar o arquivo.</p>\n    ",
+    "howToUse": [
+      {
+        "step": 1,
+        "title": "Abra o PDF",
+        "description": "Escolha o PDF que vai receber as tarjas."
+      },
+      {
+        "step": 2,
+        "title": "Marque o que esconder",
+        "description": "Arraste o dedo sobre a página para desenhar a tarja (pincel ou retângulo)."
+      },
+      {
+        "step": 3,
+        "title": "Escolha o estilo",
+        "description": "Tarja preta, branca, mosaico ou desfoque. Use \"Ver como fica\" para conferir."
+      },
+      {
+        "step": 4,
+        "title": "Gere o PDF",
+        "description": "Toque em \"Gerar PDF com tarjas\" para criar a cópia segura."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Privacidade e LGPD",
+        "description": "Esconda CPF, endereço e outros dados pessoais antes de compartilhar.",
+        "icon": "shield"
+      },
+      {
+        "title": "Documentos jurídicos e da empresa",
+        "description": "Oculte valores, cláusulas sigilosas, assinaturas e carimbos.",
+        "icon": "file-text"
+      },
+      {
+        "title": "Dados financeiros",
+        "description": "Cubra números de conta, cartões e documentos em extratos e notas.",
+        "icon": "lock"
+      }
+    ],
+    "faq": [
+      {
+        "question": "Dá para recuperar o que foi tarjado?",
+        "answer": "Não. A página com tarja vira imagem e o texto original sai do arquivo."
+      },
+      {
+        "question": "Qual a diferença entre tarja, mosaico e desfoque?",
+        "answer": "Tarja preta ou branca cobre totalmente; mosaico deixa quadriculado; desfoque deixa embaçado."
+      },
+      {
+        "question": "O arquivo é enviado para algum lugar?",
+        "answer": "Não. Tudo é feito no próprio aparelho."
+      }
+    ]
+  },
   "decrypt-pdf": {
     "title": "Descriptografar PDF",
     "metaDescription": "Remova senhas de arquivos PDF. Desbloqueie documentos protegidos permanentemente.",

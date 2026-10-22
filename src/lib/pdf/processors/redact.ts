@@ -9,6 +9,7 @@ import { PDFDocument, PDFName, rgb } from 'pdf-lib';
 import { loadPdfjs } from '../loader';
 import { PDFJS_CONFIG } from '../config';
 import { withBasePath } from '../../utils/path';
+import { tr } from '../ui-lang';
 
 export type RedactionStyle = 'blackout' | 'whiteout' | 'mosaic' | 'blur' | 'custom-color';
 
@@ -541,7 +542,7 @@ export async function redactPDF(
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     const pageIndex = pageNum - 1;
     const progressPercent = Math.round(10 + (pageIndex / totalPages) * 75);
-    onProgress?.(progressPercent, `正在处理第 ${pageNum} / ${totalPages} 页...`);
+    onProgress?.(progressPercent, `${tr('Processando a página', 'Processing page')} ${pageNum} / ${totalPages}...`);
 
     const pageRedactions = redactionsByPage[pageNum] || [];
     const shouldRasterize = pageRedactions.length > 0 || flattenAllPages || !originalPdfDoc;

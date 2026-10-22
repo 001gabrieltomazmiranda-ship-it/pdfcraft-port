@@ -1,29 +1,22 @@
 /**
- * PDF Sanitize Processor
- * Requirements: 5.1
- * 
- * Implements PDF sanitization functionality using pdf-lib.
- * Removes potentially harmful content from PDF files including:
- * - JavaScript
- * - Embedded files/attachments
- * - External links
- * - Form actions
- * - Metadata
- * - Annotations
+ * Limpar PDF (sanitizar): tira o que pode ser perigoso ou revelar informação escondida.
+ *
+ * - JavaScript em qualquer lugar (ao abrir, em links, em campos, em páginas, no XFA),
+ *   e também ações de abrir programas/arquivos e de enviar dados (Launch, SubmitForm, ImportData)
+ * - anexos (lista de arquivos embutidos e anotações de anexo)
+ * - links
+ * - formulários (viram texto fixo)
+ * - metadados (informações do documento e XMP)
+ * - anotações (opcional)
  */
 
-import type {
-  ProcessInput,
-  ProcessOutput,
-  ProgressCallback,
-} from '@/types/pdf';
+import type { ProcessInput, ProcessOutput, ProgressCallback } from '@/types/pdf';
 import { PDFErrorCode } from '@/types/pdf';
 import { BasePDFProcessor } from '../processor';
 import { loadPdfLib } from '../loader';
+import { flattenAnnotations } from '../flatten-annotations';
+import { tr } from '../ui-lang';
 
-/**
- * Sanitize PDF options
- */
 export interface SanitizePDFOptions {
   /** Remove JavaScript */
   removeJavaScript: boolean;
@@ -39,9 +32,6 @@ export interface SanitizePDFOptions {
   removeAnnotations: boolean;
 }
 
-/**
- * Default sanitize options
- */
 const DEFAULT_SANITIZE_OPTIONS: SanitizePDFOptions = {
   removeJavaScript: true,
   removeAttachments: true,
@@ -51,376 +41,306 @@ const DEFAULT_SANITIZE_OPTIONS: SanitizePDFOptions = {
   removeAnnotations: false,
 };
 
-/**
- * Sanitize PDF Processor
- * Removes potentially harmful content from PDF files.
- */
+const DANGEROUS_ACTIONS = new Set(['JavaScript', 'Launch', 'SubmitForm', 'ImportData', 'RichMediaExecute', 'GoToE']);
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+function nameText(lib: any, v: any): string | undefined {
+  return v instanceof lib.PDFName ? v.decodeText() : undefined;
+}
+
+/** Tira JavaScript e ações perigosas de todo o arquivo. Devolve quantas coisas mudou. */
+function stripActiveContent(lib: any, doc: any): number {
+  const N = lib.PDFName;
+  const ctx = doc.context;
+  let changed = 0;
+
+  const isDangerousAction = (v: any): boolean => {
+    const a = ctx.lookup(v);
+    if (!(a instanceof lib.PDFDict)) return false;
+    const s = nameText(lib, ctx.lookup(a.get(N.of('S'))));
+    return !!s && DANGEROUS_ACTIONS.has(s);
+  };
+
+  const cleanDict = (d: any) => {
+    if (d.has(N.of('AA'))) {
+      d.delete(N.of('AA'));
+      changed++;
+    }
+    const a = d.get(N.of('A'));
+    if (a && isDangerousAction(a)) {
+      d.delete(N.of('A'));
+      changed++;
+    }
+    // ação com JavaScript: esvazia (vale mesmo se for usada em outro lugar)
+    const s = nameText(lib, ctx.lookup(d.get(N.of('S'))));
+    if (s && DANGEROUS_ACTIONS.has(s)) {
+      for (const k of ['JS', 'F', 'Win', 'Mac', 'Unix', 'Fields', 'Next']) {
+        if (d.has(N.of(k))) d.delete(N.of(k));
+      }
+      if (s === 'JavaScript') d.set(N.of('JS'), lib.PDFString.of(''));
+      changed++;
+    }
+    // ação seguinte encadeada (/Next) com JavaScript
+    const next = d.get(N.of('Next'));
+    if (next) {
+      const nx = ctx.lookup(next);
+      if (nx instanceof lib.PDFArray) {
+        const kept: any[] = [];
+        for (let i = 0; i < nx.size(); i++) if (!isDangerousAction(nx.get(i))) kept.push(nx.get(i));
+        if (kept.length !== nx.size()) {
+          changed++;
+          if (kept.length) d.set(N.of('Next'), ctx.obj(kept));
+          else d.delete(N.of('Next'));
+        }
+      } else if (isDangerousAction(next)) {
+        d.delete(N.of('Next'));
+        changed++;
+      }
+    }
+  };
+
+  const visit = (obj: any, depth: number) => {
+    if (depth > 6 || !obj) return;
+    if (obj instanceof lib.PDFDict) {
+      cleanDict(obj);
+      for (const [, v] of obj.entries()) {
+        if (v instanceof lib.PDFDict || v instanceof lib.PDFArray) visit(v, depth + 1);
+      }
+    } else if (obj instanceof lib.PDFArray) {
+      for (let i = 0; i < obj.size(); i++) {
+        const v = obj.get(i);
+        if (v instanceof lib.PDFDict || v instanceof lib.PDFArray) visit(v, depth + 1);
+      }
+    } else if (obj instanceof lib.PDFStream) {
+      cleanDict(obj.dict);
+    }
+  };
+
+  // todos os objetos do arquivo (páginas, anotações, campos, marcadores, ações…)
+  for (const [, obj] of ctx.enumerateIndirectObjects()) visit(obj, 0);
+
+  // catálogo: JavaScript ao abrir e a árvore de nomes de scripts
+  const catalog = doc.catalog;
+  const open = catalog.get(N.of('OpenAction'));
+  if (open && isDangerousAction(open)) {
+    catalog.delete(N.of('OpenAction'));
+    changed++;
+  }
+  const names = ctx.lookup(catalog.get(N.of('Names')));
+  if (names instanceof lib.PDFDict && names.has(N.of('JavaScript'))) {
+    names.delete(N.of('JavaScript'));
+    changed++;
+  }
+  // formulários XFA podem ter scripts
+  const acro = ctx.lookup(catalog.get(N.of('AcroForm')));
+  if (acro instanceof lib.PDFDict && acro.has(N.of('XFA'))) {
+    acro.delete(N.of('XFA'));
+    changed++;
+  }
+  return changed;
+}
+
+function filterAnnots(lib: any, doc: any, drop: (subtype: string) => boolean): number {
+  const N = lib.PDFName;
+  const ctx = doc.context;
+  let removed = 0;
+  for (const page of doc.getPages()) {
+    const arr = ctx.lookup(page.node.get(N.of('Annots')));
+    if (!(arr instanceof lib.PDFArray)) continue;
+    const kept: any[] = [];
+    for (let i = 0; i < arr.size(); i++) {
+      const ref = arr.get(i);
+      const a = ctx.lookup(ref);
+      const st = a instanceof lib.PDFDict ? nameText(lib, ctx.lookup(a.get(N.of('Subtype')))) || '' : '';
+      if (drop(st)) removed++;
+      else kept.push(ref);
+    }
+    if (kept.length !== arr.size()) {
+      if (kept.length) page.node.set(N.of('Annots'), ctx.obj(kept));
+      else page.node.delete(N.of('Annots'));
+    }
+  }
+  return removed;
+}
+
 export class SanitizePDFProcessor extends BasePDFProcessor {
-  /**
-   * Process PDF file and sanitize it
-   */
-  async process(
-    input: ProcessInput,
-    onProgress?: ProgressCallback
-  ): Promise<ProcessOutput> {
+  async process(input: ProcessInput, onProgress?: ProgressCallback): Promise<ProcessOutput> {
     this.reset();
     this.onProgress = onProgress;
 
     const { files, options } = input;
-    const sanitizeOptions: SanitizePDFOptions = {
-      ...DEFAULT_SANITIZE_OPTIONS,
-      ...(options as Partial<SanitizePDFOptions>),
-    };
+    const opts: SanitizePDFOptions = { ...DEFAULT_SANITIZE_OPTIONS, ...(options as Partial<SanitizePDFOptions>) };
 
-    // Validate we have exactly 1 file
     if (files.length !== 1) {
       return this.createErrorOutput(
         PDFErrorCode.INVALID_OPTIONS,
-        'Please provide exactly one PDF file to sanitize.',
+        tr('Envie exatamente 1 PDF.', 'Please provide exactly one PDF file to sanitize.'),
         `Received ${files.length} file(s).`
       );
     }
-
     const file = files[0];
 
     try {
-      this.updateProgress(5, 'Loading PDF library...');
-
-      // Load pdf-lib
-      const pdfLib = await loadPdfLib();
-      const { PDFName } = pdfLib;
-
-      if (this.checkCancelled()) {
-        return this.createErrorOutput(
-          PDFErrorCode.PROCESSING_CANCELLED,
-          'Processing was cancelled.'
-        );
-      }
-
-      this.updateProgress(10, 'Reading PDF file...');
-
-      // Read file as ArrayBuffer
+      this.updateProgress(5, tr('Carregando…', 'Loading PDF library...'));
+      const pdfLib: any = await loadPdfLib();
+      const N = pdfLib.PDFName;
       const arrayBuffer = await file.arrayBuffer();
       const originalSize = arrayBuffer.byteLength;
 
-      this.updateProgress(20, 'Loading PDF document...');
-
-      // Load the source PDF
-      let pdfDoc;
+      this.updateProgress(15, tr('Lendo o PDF…', 'Loading PDF document...'));
+      let pdfDoc: any;
       try {
-        pdfDoc = await pdfLib.PDFDocument.load(arrayBuffer, {
-          ignoreEncryption: true,
-        });
+        pdfDoc = await pdfLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true, updateMetadata: false });
       } catch (error) {
-        if (error instanceof Error && error.message.includes('encrypt')) {
-          return this.createErrorOutput(
-            PDFErrorCode.PDF_ENCRYPTED,
-            'The PDF file is encrypted.',
-            'Please decrypt the file before sanitizing.'
-          );
-        }
-        throw error;
-      }
-
-      if (this.checkCancelled()) {
-        return this.createErrorOutput(
-          PDFErrorCode.PROCESSING_CANCELLED,
-          'Processing was cancelled.'
-        );
-      }
-
-      this.updateProgress(30, 'Analyzing PDF content...');
-
-      const pageCount = pdfDoc.getPageCount();
-
-      if (pageCount === 0) {
         return this.createErrorOutput(
           PDFErrorCode.PDF_MALFORMED,
-          'The PDF file contains no pages.',
-          'Cannot sanitize an empty PDF.'
+          tr('Não foi possível ler este PDF.', 'Could not read this PDF.'),
+          error instanceof Error ? error.message : String(error)
         );
       }
+      if (pdfDoc.isEncrypted) {
+        return this.createErrorOutput(
+          PDFErrorCode.PDF_ENCRYPTED,
+          tr('Este PDF tem senha. Use "Remover senha" primeiro.', 'The PDF file is encrypted.'),
+          tr('Remova a senha e tente de novo.', 'Please decrypt the file before sanitizing.')
+        );
+      }
+      const pageCount = pdfDoc.getPageCount();
+      if (pageCount === 0) {
+        return this.createErrorOutput(PDFErrorCode.PDF_MALFORMED, tr('O PDF não tem páginas.', 'The PDF file contains no pages.'));
+      }
 
-      // Track what was removed
       const removedItems: string[] = [];
+      const catalog = pdfDoc.catalog;
+      const ctx = pdfDoc.context;
 
-      this.updateProgress(40, 'Sanitizing PDF content...');
+      // JavaScript primeiro (antes de achatar: scripts de campos saem junto)
+      if (opts.removeJavaScript) {
+        this.updateProgress(25, tr('Removendo JavaScript…', 'Removing JavaScript...'));
+        const n = stripActiveContent(pdfLib, pdfDoc);
+        if (n > 0) removedItems.push(tr('JavaScript e ações automáticas', 'JavaScript and automatic actions'));
+      }
 
-      // Flatten forms
-      if (sanitizeOptions.flattenForms) {
+      if (opts.flattenForms) {
+        this.updateProgress(40, tr('Achatando o formulário…', 'Flattening forms...'));
+        let fieldsCount = 0;
+        let fallback = false;
         try {
           const form = pdfDoc.getForm();
-          const fields = form.getFields();
-          if (fields.length > 0) {
+          fieldsCount = form.getFields().length;
+          if (fieldsCount > 0) {
             form.flatten();
-            removedItems.push('form fields (flattened)');
+            if (form.getFields().length === 0) catalog.delete(N.of('AcroForm'));
           }
-        } catch (e: any) {
-          // Try to remove AcroForm if flatten fails
-          try {
-            const catalogDict = (pdfDoc.catalog as any).dict;
-            if (catalogDict.has(PDFName.of('AcroForm'))) {
-              catalogDict.delete(PDFName.of('AcroForm'));
-              removedItems.push('form fields');
-            }
-          } catch (removeError) {
-            console.warn('Could not remove AcroForm:', removeError);
-          }
-        }
-      }
-
-      this.updateProgress(50, 'Removing metadata...');
-
-      // Remove metadata
-      if (sanitizeOptions.removeMetadata) {
-        try {
-          // Clear info dict
-          const infoDict = (pdfDoc as any).getInfoDict();
-          const allKeys = infoDict.keys();
-          allKeys.forEach((key: any) => {
-            infoDict.delete(key);
-          });
-
-          pdfDoc.setTitle('');
-          pdfDoc.setAuthor('');
-          pdfDoc.setSubject('');
-          pdfDoc.setKeywords([]);
-          pdfDoc.setCreator('');
-          pdfDoc.setProducer('PDFCraft');
-
-          // Remove XMP metadata
-          try {
-            const catalogDict = (pdfDoc.catalog as any).dict;
-            if (catalogDict.has(PDFName.of('Metadata'))) {
-              catalogDict.delete(PDFName.of('Metadata'));
-            }
-          } catch (e) {
-            console.warn('Could not remove XMP metadata');
-          }
-
-          removedItems.push('metadata');
         } catch (e) {
-          console.warn('Could not remove metadata:', e);
+          console.warn('[limpar] formulário pelo pdf-lib falhou', e);
+          fallback = true;
         }
+        if (fallback) {
+          const r = await flattenAnnotations(pdfLib, pdfDoc, { widgets: true, annotations: false });
+          fieldsCount = Math.max(fieldsCount, r.widgets);
+          // o que sobrou do formulário sai
+          if (catalog.has(N.of('AcroForm'))) catalog.delete(N.of('AcroForm'));
+        }
+        if (fieldsCount > 0) removedItems.push(tr('formulário (achatado)', 'form fields (flattened)'));
       }
 
-      this.updateProgress(60, 'Removing annotations...');
+      if (opts.removeAttachments) {
+        this.updateProgress(55, tr('Removendo anexos…', 'Removing embedded files...'));
+        let n = 0;
+        const names = ctx.lookup(catalog.get(N.of('Names')));
+        if (names instanceof pdfLib.PDFDict && names.has(N.of('EmbeddedFiles'))) {
+          names.delete(N.of('EmbeddedFiles'));
+          n++;
+        }
+        if (catalog.has(N.of('Collection'))) {
+          catalog.delete(N.of('Collection'));
+          n++;
+        }
+        if (catalog.has(N.of('AF'))) {
+          catalog.delete(N.of('AF'));
+          n++;
+        }
+        n += filterAnnots(pdfLib, pdfDoc, (st) => st === 'FileAttachment');
+        if (n > 0) removedItems.push(tr('anexos', 'embedded files'));
+      }
 
-      // Remove annotations
-      if (sanitizeOptions.removeAnnotations) {
-        const pages = pdfDoc.getPages();
-        for (const page of pages) {
-          try {
-            page.node.delete(PDFName.of('Annots'));
-          } catch (e) {
-            // Page might not have annotations
+      if (opts.removeLinks) {
+        this.updateProgress(65, tr('Removendo links…', 'Removing links...'));
+        const n = filterAnnots(pdfLib, pdfDoc, (st) => st === 'Link');
+        if (n > 0) removedItems.push(tr(`${n} link(s)`, `${n} link(s)`));
+      }
+
+      if (opts.removeAnnotations) {
+        this.updateProgress(72, tr('Removendo anotações…', 'Removing annotations...'));
+        const n = filterAnnots(pdfLib, pdfDoc, (st) => st !== 'Widget');
+        if (n > 0) removedItems.push(tr(`${n} anotação(ões)`, `${n} annotation(s)`));
+      }
+
+      if (opts.removeMetadata) {
+        this.updateProgress(80, tr('Removendo metadados…', 'Removing metadata...'));
+        const infoRef = ctx.trailerInfo.Info;
+        const info = infoRef ? ctx.lookup(infoRef) : undefined;
+        let n = 0;
+        if (info instanceof pdfLib.PDFDict) {
+          for (const k of info.keys()) {
+            info.delete(k);
+            n++;
           }
         }
-        removedItems.push('annotations');
-      }
-
-      this.updateProgress(70, 'Removing JavaScript...');
-
-      // Remove JavaScript
-      if (sanitizeOptions.removeJavaScript) {
-        try {
-          const catalogDict = (pdfDoc.catalog as any).dict;
-
-          // Remove from Names/JavaScript
-          const namesRef = catalogDict.get(PDFName.of('Names'));
-          if (namesRef) {
-            try {
-              const namesDict = pdfDoc.context.lookup(namesRef) as any;
-              if (namesDict.has(PDFName.of('JavaScript'))) {
-                namesDict.delete(PDFName.of('JavaScript'));
-              }
-            } catch (e) {
-              // Ignore
-            }
-          }
-
-          // Remove OpenAction
-          if (catalogDict.has(PDFName.of('OpenAction'))) {
-            catalogDict.delete(PDFName.of('OpenAction'));
-          }
-
-          // Remove AA (Additional Actions)
-          if (catalogDict.has(PDFName.of('AA'))) {
-            catalogDict.delete(PDFName.of('AA'));
-          }
-
-          // Remove from pages
-          const pages = pdfDoc.getPages();
-          for (const page of pages) {
-            try {
-              const pageDict = page.node;
-              if (pageDict.has(PDFName.of('AA'))) {
-                pageDict.delete(PDFName.of('AA'));
-              }
-            } catch (e) {
-              // Ignore
-            }
-          }
-
-          removedItems.push('JavaScript');
-        } catch (e) {
-          console.warn('Could not remove JavaScript:', e);
+        if (catalog.has(N.of('Metadata'))) {
+          catalog.delete(N.of('Metadata'));
+          n++;
         }
-      }
-
-      this.updateProgress(80, 'Removing embedded files...');
-
-      // Remove embedded files/attachments
-      if (sanitizeOptions.removeAttachments) {
-        try {
-          const catalogDict = (pdfDoc.catalog as any).dict;
-
-          // Remove from Names/EmbeddedFiles
-          const namesRef = catalogDict.get(PDFName.of('Names'));
-          if (namesRef) {
-            try {
-              const namesDict = pdfDoc.context.lookup(namesRef) as any;
-              if (namesDict.has(PDFName.of('EmbeddedFiles'))) {
-                namesDict.delete(PDFName.of('EmbeddedFiles'));
-              }
-            } catch (e) {
-              // Ignore
-            }
-          }
-
-          // Remove Collection
-          if (catalogDict.has(PDFName.of('Collection'))) {
-            catalogDict.delete(PDFName.of('Collection'));
-          }
-
-          removedItems.push('embedded files');
-        } catch (e) {
-          console.warn('Could not remove embedded files:', e);
+        if (catalog.has(N.of('PieceInfo'))) catalog.delete(N.of('PieceInfo'));
+        for (const page of pdfDoc.getPages()) {
+          if (page.node.has(N.of('Metadata'))) page.node.delete(N.of('Metadata'));
+          if (page.node.has(N.of('PieceInfo'))) page.node.delete(N.of('PieceInfo'));
         }
+        if (n > 0) removedItems.push(tr('metadados', 'metadata'));
       }
 
-      // Remove links
-      if (sanitizeOptions.removeLinks) {
-        try {
-          const pages = pdfDoc.getPages();
-          for (const page of pages) {
-            try {
-              const pageDict = page.node;
-              const annotsRef = pageDict.get(PDFName.of('Annots'));
-              if (!annotsRef) continue;
+      if (this.checkCancelled()) return this.createErrorOutput(PDFErrorCode.PROCESSING_CANCELLED, 'Processing was cancelled.');
 
-              const annotsArray = pdfDoc.context.lookup(annotsRef) as any;
-              const annotRefs = annotsArray.asArray();
-              const annotsToKeep = [];
-
-              for (const ref of annotRefs) {
-                try {
-                  const annot = pdfDoc.context.lookup(ref) as any;
-                  const subtype = annot.get(PDFName.of('Subtype'))?.toString().substring(1);
-
-                  // Keep non-link annotations
-                  if (subtype !== 'Link') {
-                    annotsToKeep.push(ref);
-                  }
-                } catch (e) {
-                  annotsToKeep.push(ref);
-                }
-              }
-
-              if (annotsToKeep.length !== annotRefs.length) {
-                if (annotsToKeep.length > 0) {
-                  const newAnnotsArray = pdfDoc.context.obj(annotsToKeep);
-                  pageDict.set(PDFName.of('Annots'), newAnnotsArray);
-                } else {
-                  pageDict.delete(PDFName.of('Annots'));
-                }
-              }
-            } catch (e) {
-              // Ignore page errors
-            }
-          }
-          removedItems.push('links');
-        } catch (e) {
-          console.warn('Could not remove links:', e);
-        }
-      }
-
-      if (this.checkCancelled()) {
-        return this.createErrorOutput(
-          PDFErrorCode.PROCESSING_CANCELLED,
-          'Processing was cancelled.'
-        );
-      }
-
-      this.updateProgress(90, 'Saving sanitized PDF...');
-
-      // Save the sanitized PDF
+      this.updateProgress(90, tr('Salvando…', 'Saving sanitized PDF...'));
       const sanitizedPdfBytes = await pdfDoc.save({ useObjectStreams: true });
-
-      // Create blob from the Uint8Array
       const blob = new Blob([new Uint8Array(sanitizedPdfBytes)], { type: 'application/pdf' });
-      const newSize = sanitizedPdfBytes.length;
 
-      this.updateProgress(100, 'Complete!');
-
-      // Generate output filename
-      const outputFilename = generateSanitizedFilename(file.name);
-
-      return this.createSuccessOutput(blob, outputFilename, {
+      this.updateProgress(100, tr('Pronto!', 'Complete!'));
+      if (removedItems.length === 0) removedItems.push(tr('nada perigoso encontrado', 'nothing to remove'));
+      return this.createSuccessOutput(blob, generateSanitizedFilename(file.name), {
         pageCount,
         originalSize,
-        newSize,
+        newSize: sanitizedPdfBytes.length,
         removedItems,
         sanitized: true,
       });
-
     } catch (error) {
       return this.createErrorOutput(
         PDFErrorCode.PROCESSING_FAILED,
-        'Failed to sanitize PDF file.',
+        tr('Não foi possível limpar o PDF.', 'Failed to sanitize PDF file.'),
         error instanceof Error ? error.message : 'Unknown error'
       );
     }
   }
 
-  /**
-   * Get accepted file types for sanitize processor
-   */
   protected getAcceptedTypes(): string[] {
     return ['application/pdf'];
   }
 }
 
-/**
- * Generate a filename for the sanitized PDF
- */
 function generateSanitizedFilename(originalName: string): string {
   const lastDot = originalName.lastIndexOf('.');
   const baseName = lastDot === -1 ? originalName : originalName.slice(0, lastDot);
   return `${baseName}_sanitized.pdf`;
 }
 
-/**
- * Create a new instance of the sanitize processor
- */
 export function createSanitizeProcessor(): SanitizePDFProcessor {
   return new SanitizePDFProcessor();
 }
 
-/**
- * Sanitize a PDF file (convenience function)
- */
-export async function sanitizePDF(
-  file: File,
-  options?: Partial<SanitizePDFOptions>,
-  onProgress?: ProgressCallback
-): Promise<ProcessOutput> {
+export async function sanitizePDF(file: File, options?: Partial<SanitizePDFOptions>, onProgress?: ProgressCallback): Promise<ProcessOutput> {
   const processor = createSanitizeProcessor();
-  return processor.process(
-    {
-      files: [file],
-      options: options || {},
-    },
-    onProgress
-  );
+  return processor.process({ files: [file], options: options || {} }, onProgress);
 }
