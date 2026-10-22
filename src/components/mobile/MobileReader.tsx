@@ -32,6 +32,7 @@ import { EditPdfBottom, EditPdfFormat, type EditActions } from './editor/EditPdf
 import { applyEdits, isEngineReady, onEngineStatus, warmupEngine } from './editor/engine';
 import { useBackClose } from './backStack';
 import ReaderMenu from './resize/ReaderMenu';
+import PageNav, { readViewMode, saveViewMode, type NavApp, type ViewMode } from './PageNav';
 import ResizeSheet, { type ResizeRequest } from './resize/ResizeSheet';
 import { resizePdf } from './resize/resizePdf';
 
@@ -87,6 +88,8 @@ export default function MobileReader({ locale, titles }: { locale: string; title
   const [peMsg, setPeMsg] = useState<string | null>(null);
   // menu de três pontos e Redimensionar
   const [menuOpen, setMenuOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('continuous');
+  useEffect(() => setViewMode(readViewMode()), []);
   const [resize, setResize] = useState<{ w: number; h: number; page: number; numPages: number } | null>(null);
 
   useEffect(() => {
@@ -565,6 +568,14 @@ export default function MobileReader({ locale, titles }: { locale: string; title
         {error && <p className="r-msg">{error}</p>}
         {!error && !src && !host && <p className="r-msg">{pt ? 'Abrindo…' : 'Opening…'}</p>}
         {src && <iframe ref={iframeRef} src={src} onLoad={onLoad} className="r-frame" title={name} />}
+        <PageNav
+          src={src}
+          mode={viewMode}
+          pt={pt}
+          swipeOff={!!pe || editing}
+          getApp={() => getApp() as unknown as NavApp | undefined}
+          getDoc={() => iframeRef.current?.contentDocument}
+        />
       </div>
       {editing && !pe && <FormatBar mode={mode} pt={pt} getApp={getApp} />}
       {pe ? (
@@ -613,6 +624,13 @@ export default function MobileReader({ locale, titles }: { locale: string; title
       {menuOpen && (
         <ReaderMenu
           pt={pt}
+          viewMode={viewMode}
+          onViewMode={(m) => {
+            setMenuOpen(false);
+            setViewMode(m);
+            saveViewMode(m);
+            flash(m === 'page' ? (pt ? 'Página por página: deslize para o lado.' : 'Single page: swipe sideways.') : pt ? 'Exibição contínua.' : 'Continuous view.');
+          }}
           onResize={openResize}
           onWord={() => {
             setMenuOpen(false);

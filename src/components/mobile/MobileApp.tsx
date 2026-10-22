@@ -15,6 +15,7 @@ import { useToolLauncher } from './ToolLauncher';
 import type { Locale } from '@/lib/i18n/config';
 import { listRecent, toggleFav, type RecentDoc } from '@/lib/mobile-files';
 import './mobile.css';
+import PasswordEyes from './PasswordEyes';
 
 type Content = Record<string, { title: string; description: string }>;
 
@@ -55,6 +56,7 @@ export function MobileShell({ locale, children }: { locale: string; children: Re
   return (
     <>
       {children}
+      {mobile && <PasswordEyes pt={pt} />}
       {mobile && (
         <nav className="m-nav" aria-label="Principal">
           {items.map(({ href, label, Icon, exact }) => {
