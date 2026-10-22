@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -35,6 +35,8 @@ import ReaderMenu from './resize/ReaderMenu';
 import PageNav, { readViewMode, saveViewMode, type NavApp, type ViewMode } from './PageNav';
 import ResizeSheet, { type ResizeRequest } from './resize/ResizeSheet';
 import { resizePdf } from './resize/resizePdf';
+import { SignMenu } from './sign/SignSheet';
+import { toEditorData, type SigDrawing, type SigKind } from './sign/signatures';
 
 /** Ferramentas que só existem no app e aparecem em "Mais ferramentas". */
 const APP_EXTRA_TOOLS = (pt: boolean) => [
@@ -54,7 +56,9 @@ function EditBack({ onBack }: { onBack: () => void }) {
 
 const HIDE_TOOLBAR_CSS =
   '#toolbarContainer,#sidebarContainer,#secondaryToolbar{display:none !important}' +
-  '#viewerContainer{inset:0 !important;overscroll-behavior:contain}';
+  '#viewerContainer{inset:0 !important;overscroll-behavior:contain}' +
+  // assinatura: sem o botão de "descrição" (texto alternativo) na barrinha da assinatura
+  '.editToolbar .editDescription{display:none !important}';
 
 const MAX_UNDO = 10;
 
@@ -91,6 +95,8 @@ export default function MobileReader({ locale, titles }: { locale: string; title
   const [viewMode, setViewMode] = useState<ViewMode>('continuous');
   useEffect(() => setViewMode(readViewMode()), []);
   const [resize, setResize] = useState<{ w: number; h: number; page: number; numPages: number } | null>(null);
+  // Assinar (menu com assinatura e rubrica salvas)
+  const [signOpen, setSignOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -266,10 +272,70 @@ export default function MobileReader({ locale, titles }: { locale: string; title
 
   const toggleMode = (m: number) => selectMode(mode === m ? EDITOR.NONE : m);
 
+  /** pdfjsLib do visualizador (transforma texto e fotos em assinatura). */
+  const getLib = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    () => (iframeRef.current?.contentWindow as any)?.pdfjsLib,
+    []
+  );
+
+  /** A janela antiga de assinatura do visualizador nunca aparece: no lugar dela abre o nosso menu. */
+  const hookOldSignDialog = () => {
+    const ui = editorManager(getApp()) as unknown as
+      | { getSignature?: (editor: { remove?: () => void }) => void; __pcSign?: boolean }
+      | undefined;
+    if (!ui || ui.__pcSign) return;
+    ui.__pcSign = true;
+    ui.getSignature = (editor) => {
+      window.setTimeout(() => {
+        try {
+          editor?.remove?.();
+        } catch {
+          /* já saiu */
+        }
+      }, 0);
+      setSignOpen(true);
+    };
+  };
+
+  const openSign = () => {
+    setMoreOpen(false);
+    setSearchOpen(false);
+    setToast(null);
+    hookOldSignDialog();
+    setSignOpen(true);
+  };
+
+  /** Coloca a assinatura no meio da parte da página que está na tela, pronta para arrastar. */
+  const placeSignature = (d: SigDrawing, kind: SigKind) => {
+    setSignOpen(false);
+    const app = getApp();
+    if (!app) return;
+    hookOldSignDialog();
+    let done = false;
+    const create = () => {
+      if (done) return;
+      done = true;
+      app.eventBus.dispatch('switchannotationeditorparams', { source: app, type: PARAM.CREATE, value: toEditorData(d, kind) });
+      flash(
+        pt
+          ? 'Arraste para o lugar certo. Puxe um canto para mudar o tamanho.'
+          : 'Drag it into place. Pull a corner to resize.'
+      );
+    };
+    if (mode === EDITOR.SIGN) {
+      create();
+      return;
+    }
+    app.eventBus._on('annotationeditormodechanged', create, { once: true });
+    selectMode(EDITOR.SIGN);
+    window.setTimeout(create, 900);
+  };
+
   /** Abre uma ferramenta: as do próprio leitor agem direto no documento, o resto abre numa folha. */
   const openTool = (id: string) => {
     setMoreOpen(false);
-    if (id === 'sign-pdf') return startCreating(EDITOR.SIGN);
+    if (id === 'sign-pdf') return openSign();
     if (id === 'add-stamps') return startCreating(EDITOR.STAMP);
     if (id === 'edit-pdf') return startPdfEdit();
     if (id === 'resize-pages') return openResize();
@@ -592,7 +658,7 @@ export default function MobileReader({ locale, titles }: { locale: string; title
             {label}
           </button>
         ))}
-        <button className="r-tool" aria-pressed={mode === EDITOR.SIGN} onClick={() => startCreating(EDITOR.SIGN)} disabled={!src}>
+        <button className="r-tool" aria-pressed={mode === EDITOR.SIGN || signOpen} onClick={openSign} disabled={!src}>
           <PenLine aria-hidden="true" />
           {pt ? 'Assinar' : 'Sign'}
         </button>
@@ -637,6 +703,18 @@ export default function MobileReader({ locale, titles }: { locale: string; title
             setHost('pdf-to-docx');
           }}
           onClose={() => setMenuOpen(false)}
+        />
+      )}
+      {signOpen && (
+        <SignMenu
+          pt={pt}
+          getLib={getLib}
+          onPick={placeSignature}
+          onCertificate={() => {
+            setSignOpen(false);
+            setHost('digital-sign-pdf');
+          }}
+          onClose={() => setSignOpen(false)}
         />
       )}
       {resize && (

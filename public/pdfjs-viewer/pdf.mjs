@@ -23832,9 +23832,11 @@ function parseHexColorToRgbArray(color) {
     return [0, 0, 0];
   }
   const hex = m[1];
-  const r = parseInt(hex.slice(0, 2), 16) / 255;
-  const g = parseInt(hex.slice(2, 4), 16) / 255;
-  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  // PDFCraft: 0..255, como o resto do PDF.js espera (antes ia 0..1 e toda
+  // assinatura colorida saía preta no arquivo salvo)
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
   return [r, g, b];
 }
 class DrawnSignatureOptions extends InkDrawingOptions {
@@ -23933,7 +23935,8 @@ class SignatureEditor extends DrawingEditor {
           areContours,
           description,
           uuid,
-          heightInPage
+          heightInPage,
+          signatureColor
         } = this.#signatureData;
         const {
           rawDims: {
@@ -23951,6 +23954,10 @@ class SignatureEditor extends DrawingEditor {
           mustSmooth,
           areContours
         });
+        // PDFCraft: a cor escolhida na tela de assinatura do app vai junto
+        if (outline && signatureColor) {
+          outline.signatureColor = signatureColor;
+        }
         this.addSignature(outline, heightInPage, description, uuid);
       } else {
         this.div.setAttribute("data-l10n-args", JSON.stringify({
