@@ -31,6 +31,19 @@ import { PageEditor, type EditorApp, type EditStatus } from './editor/PageEditor
 import { EditPdfBottom, EditPdfFormat, type EditActions } from './editor/EditPdfBars';
 import { applyEdits, isEngineReady, onEngineStatus, warmupEngine } from './editor/engine';
 import { useBackClose } from './backStack';
+import ReaderMenu from './resize/ReaderMenu';
+import ResizeSheet, { type ResizeRequest } from './resize/ResizeSheet';
+import { resizePdf } from './resize/resizePdf';
+
+/** Ferramentas que só existem no app e aparecem em "Mais ferramentas". */
+const APP_EXTRA_TOOLS = (pt: boolean) => [
+  { id: 'resize-pages', title: pt ? 'Redimensionar' : 'Resize', icon: 'ruler-dimension-line', category: 'organize-manage' as const },
+];
+
+interface PageViewerLike {
+  currentPageNumber?: number;
+  getPageView?: (i: number) => { pdfPage?: { getViewport: (o: { scale: number }) => { width: number; height: number } } } | undefined;
+}
 
 /** Botão Voltar do Android durante o "Editar PDF": termina a edição (grava). */
 function EditBack({ onBack }: { onBack: () => void }) {
@@ -72,6 +85,9 @@ export default function MobileReader({ locale, titles }: { locale: string; title
   const discardRef = useRef(0);
   const [pe, setPe] = useState<EditStatus | null>(null);
   const [peMsg, setPeMsg] = useState<string | null>(null);
+  // menu de três pontos e Redimensionar
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [resize, setResize] = useState<{ w: number; h: number; page: number; numPages: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -242,9 +258,57 @@ export default function MobileReader({ locale, titles }: { locale: string; title
     if (id === 'sign-pdf') return startCreating(EDITOR.SIGN);
     if (id === 'add-stamps') return startCreating(EDITOR.STAMP);
     if (id === 'edit-pdf') return startPdfEdit();
+    if (id === 'resize-pages') return openResize();
     if (id === 'pdf-reader') return;
     if (IN_APP_TOOLS.includes(id)) return openPanel(id);
     setHost(id);
+  };
+
+  const openResize = () => {
+    setMenuOpen(false);
+    setMoreOpen(false);
+    const app = getApp();
+    const viewer = app?.pdfViewer as PageViewerLike | undefined;
+    const page = viewer?.currentPageNumber ?? 1;
+    let w = 595.28;
+    let h = 841.89;
+    try {
+      const vp = viewer?.getPageView?.(page - 1)?.pdfPage?.getViewport({ scale: 1 });
+      if (vp && vp.width > 0 && vp.height > 0) {
+        w = vp.width;
+        h = vp.height;
+      }
+    } catch {
+      /* usa A4 */
+    }
+    setResize({ w, h, page, numPages: app?.pdfDocument?.numPages ?? 1 });
+  };
+
+  const applyResize = async (req: ResizeRequest, copy: boolean) => {
+    const page = resize?.page ?? 1;
+    setResize(null);
+    setPeMsg(pt ? 'Redimensionando…' : 'Resizing…');
+    try {
+      const before = await getBytes();
+      const out = await resizePdf(before, {
+        width: req.width,
+        height: req.height,
+        mode: req.mode,
+        pages: req.pages === 'all' ? 'all' : [page],
+      });
+      const result = new Blob([out as unknown as BlobPart], { type: 'application/pdf' });
+      if (copy) {
+        await openCopy(result, (name || 'documento.pdf').replace(/\.pdf$/i, '') + '_redimensionado.pdf');
+      } else {
+        onResult(result, before);
+        flash((pt ? 'Redimensionado: ' : 'Resized: ') + req.label);
+      }
+    } catch (err) {
+      console.error('[resize]', err);
+      flash(pt ? 'Não foi possível redimensionar.' : 'Could not resize.');
+    } finally {
+      setPeMsg(null);
+    }
   };
 
   const startPdfEdit = () => {
@@ -447,6 +511,13 @@ export default function MobileReader({ locale, titles }: { locale: string; title
           <button className="r-btn" aria-label={pt ? 'Salvar' : 'Save'} onClick={save} disabled={busy}>
             <Download />
           </button>
+          <button className="r-btn" aria-label={pt ? 'Mais opções' : 'More options'} onClick={() => setMenuOpen(true)} disabled={!src}>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="5" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="12" cy="19" r="2" />
+            </svg>
+          </button>
         </header>
       )}
       {pe && <EditPdfFormat status={pe} pt={pt} act={peAct} />}
@@ -517,7 +588,35 @@ export default function MobileReader({ locale, titles }: { locale: string; title
       )}
       {toast && <div className="r-toast" role="status">{toast}</div>}
       {moreOpen && (
-        <MoreToolsSheet locale={locale} titles={titles} featured={IN_APP_TOOLS} onPick={openTool} onClose={() => setMoreOpen(false)} />
+        <MoreToolsSheet
+          locale={locale}
+          titles={titles}
+          featured={IN_APP_TOOLS}
+          extra={APP_EXTRA_TOOLS(pt)}
+          onPick={openTool}
+          onClose={() => setMoreOpen(false)}
+        />
+      )}
+      {menuOpen && (
+        <ReaderMenu
+          pt={pt}
+          onResize={openResize}
+          onWord={() => {
+            setMenuOpen(false);
+            setHost('pdf-to-docx');
+          }}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+      {resize && (
+        <ResizeSheet
+          pt={pt}
+          current={{ w: resize.w, h: resize.h }}
+          pageNum={resize.page}
+          numPages={resize.numPages}
+          onApply={applyResize}
+          onClose={() => setResize(null)}
+        />
       )}
       {panel && (
         <ToolPanel

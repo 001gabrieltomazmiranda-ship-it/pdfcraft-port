@@ -1,19 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import ToolCatalog from './ToolCatalog';
+import ToolCatalog, { type ExtraTool } from './ToolCatalog';
 import { useBackClose } from './backStack';
 
 export default function MoreToolsSheet({
   locale,
   titles,
   featured,
+  extra,
   onPick,
   onClose,
 }: {
   locale: string;
   titles: Record<string, string>;
   featured: string[];
+  extra?: ExtraTool[];
   onPick: (id: string) => void;
   onClose: () => void;
 }) {
@@ -31,7 +33,7 @@ export default function MoreToolsSheet({
       >
         <button className="ms-handle" aria-label={pt ? 'Fechar' : 'Close'} onClick={onClose} />
         <h2 className="ms-title">{pt ? 'Mais ferramentas' : 'More tools'}</h2>
-        <ToolCatalog locale={locale} titles={titles} featured={featured} onPick={onPick} onSearchActive={setFull} />
+        <ToolCatalog locale={locale} titles={titles} featured={featured} extra={extra} onPick={onPick} onSearchActive={setFull} />
       </div>
     </div>
   );

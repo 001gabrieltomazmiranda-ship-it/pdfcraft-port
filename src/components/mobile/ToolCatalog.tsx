@@ -6,7 +6,12 @@ import { getAllTools } from '@/config/tools';
 import { getToolIcon } from '@/config/icons';
 import type { ToolCategory } from '@/types/tool';
 
-type ToolItem = ReturnType<typeof getAllTools>[number];
+type ToolItem = Pick<ReturnType<typeof getAllTools>[number], 'id' | 'icon' | 'category'>;
+
+/** Ferramenta que existe só no app (não está na lista do site), ex.: Redimensionar. */
+export interface ExtraTool extends ToolItem {
+  title: string;
+}
 
 const GROUPS: { id: ToolCategory; pt: string; en: string }[] = [
   { id: 'organize-manage', pt: 'Organizar', en: 'Organize' },
@@ -22,6 +27,7 @@ export default function ToolCatalog({
   locale,
   titles,
   featured = [],
+  extra = [],
   onPick,
   onSearchActive,
 }: {
@@ -29,6 +35,8 @@ export default function ToolCatalog({
   titles: Record<string, string>;
   /** Ferramentas mostradas primeiro, na seção "Mais usadas". */
   featured?: string[];
+  /** Ferramentas do app mostradas primeiro em "Mais usadas" e na busca. */
+  extra?: ExtraTool[];
   onPick: (id: string) => void;
   /** Avisa quando a pessoa está buscando (a folha vai para a tela toda). */
   onSearchActive?: (active: boolean) => void;
@@ -51,9 +59,9 @@ export default function ToolCatalog({
     if (el && typeof el.scrollTo === 'function') el.scrollTo({ top: 0 });
   }, [q]);
   const all = getAllTools();
-  const title = (id: string) => titles[id] || id.replace(/-/g, ' ');
+  const title = (id: string) => extra.find((x) => x.id === id)?.title || titles[id] || id.replace(/-/g, ' ');
   const term = q.trim().toLowerCase();
-  const found = term ? all.filter((t) => title(t.id).toLowerCase().includes(term)) : null;
+  const found = term ? [...extra, ...all].filter((t) => title(t.id).toLowerCase().includes(term)) : null;
 
   const tile = (t: ToolItem) => {
     const Icon = getToolIcon(t.icon);
@@ -67,7 +75,7 @@ export default function ToolCatalog({
     );
   };
 
-  const top = all.filter((t) => featured.includes(t.id));
+  const top: ToolItem[] = [...extra, ...all.filter((t) => featured.includes(t.id))];
 
   return (
     <>
