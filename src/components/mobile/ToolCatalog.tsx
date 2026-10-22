@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { getAllTools } from '@/config/tools';
 import { getToolIcon } from '@/config/icons';
@@ -23,15 +23,33 @@ export default function ToolCatalog({
   titles,
   featured = [],
   onPick,
+  onSearchActive,
 }: {
   locale: string;
   titles: Record<string, string>;
   /** Ferramentas mostradas primeiro, na seção "Mais usadas". */
   featured?: string[];
   onPick: (id: string) => void;
+  /** Avisa quando a pessoa está buscando (a folha vai para a tela toda). */
+  onSearchActive?: (active: boolean) => void;
 }) {
   const pt = locale.startsWith('pt');
   const [q, setQ] = useState('');
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const active = focused || q.length > 0;
+
+  useEffect(() => {
+    onSearchActive?.(active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  // a cada letra, os resultados voltam para o topo (logo abaixo do campo)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && typeof el.scrollTo === 'function') el.scrollTo({ top: 0 });
+  }, [q]);
   const all = getAllTools();
   const title = (id: string) => titles[id] || id.replace(/-/g, ' ');
   const term = q.trim().toLowerCase();
@@ -53,16 +71,36 @@ export default function ToolCatalog({
 
   return (
     <>
-      <label className="ms-search">
-        <Search size={18} aria-hidden="true" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={pt ? 'Buscar ferramenta' : 'Search tools'}
-          aria-label={pt ? 'Buscar ferramenta' : 'Search tools'}
-        />
-      </label>
-      <div className="ms-scroll">
+      <div className="ms-searchrow">
+        <label className="ms-search">
+          <Search size={18} aria-hidden="true" />
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            enterKeyHint="search"
+            placeholder={pt ? 'Buscar ferramenta' : 'Search tools'}
+            aria-label={pt ? 'Buscar ferramenta' : 'Search tools'}
+          />
+        </label>
+        {active && onSearchActive && (
+          <button
+            type="button"
+            className="ms-cancel"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setQ('');
+              setFocused(false);
+              inputRef.current?.blur();
+            }}
+          >
+            {pt ? 'Cancelar' : 'Cancel'}
+          </button>
+        )}
+      </div>
+      <div ref={scrollRef} className={'ms-scroll' + (active ? ' ms-typing' : '')}>
         {found ? (
           found.length === 0 ? (
             <p className="m-empty">{pt ? 'Nenhuma ferramenta encontrada.' : 'No tools found.'}</p>

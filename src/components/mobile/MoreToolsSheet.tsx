@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import ToolCatalog from './ToolCatalog';
 import { useBackClose } from './backStack';
 
@@ -17,11 +18,12 @@ export default function MoreToolsSheet({
   onClose: () => void;
 }) {
   const pt = locale.startsWith('pt');
+  const [full, setFull] = useState(false);
   useBackClose(onClose);
   return (
     <div className="ms-back" onClick={onClose}>
       <div
-        className="ms-sheet"
+        className={'ms-sheet' + (full ? ' ms-full' : '')}
         role="dialog"
         aria-modal="true"
         aria-label={pt ? 'Mais ferramentas' : 'More tools'}
@@ -29,7 +31,7 @@ export default function MoreToolsSheet({
       >
         <button className="ms-handle" aria-label={pt ? 'Fechar' : 'Close'} onClick={onClose} />
         <h2 className="ms-title">{pt ? 'Mais ferramentas' : 'More tools'}</h2>
-        <ToolCatalog locale={locale} titles={titles} featured={featured} onPick={onPick} />
+        <ToolCatalog locale={locale} titles={titles} featured={featured} onPick={onPick} onSearchActive={setFull} />
       </div>
     </div>
   );

@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Search,
   Download,
-  Type,
+  Edit,
   Highlighter,
   Pencil,
   PenLine,
@@ -16,6 +16,8 @@ import {
   Undo2,
   Redo2,
   Check,
+  X,
+  Loader2,
 } from 'lucide-react';
 import { withBasePath } from '@/lib/utils/path';
 import MoreToolsSheet from './MoreToolsSheet';
@@ -25,6 +27,16 @@ import FormatBar from './FormatBar';
 import { installPinchZoom } from './pinchZoom';
 import { addRecent, listRecent, loadBlob, saveBytes } from '@/lib/mobile-files';
 import { EDITOR, PARAM, editorManager, ensureViewerPrefs, readView, restoreView, whenPagesReady, type ViewerApp, type ViewerWin, type ViewState } from './viewer';
+import { PageEditor, type EditorApp, type EditStatus } from './editor/PageEditor';
+import { EditPdfBottom, EditPdfFormat, type EditActions } from './editor/EditPdfBars';
+import { applyEdits, isEngineReady, onEngineStatus, warmupEngine } from './editor/engine';
+import { useBackClose } from './backStack';
+
+/** Botão Voltar do Android durante o "Editar PDF": termina a edição (grava). */
+function EditBack({ onBack }: { onBack: () => void }) {
+  useBackClose(onBack);
+  return null;
+}
 
 const HIDE_TOOLBAR_CSS =
   '#toolbarContainer,#sidebarContainer,#secondaryToolbar{display:none !important}' +
@@ -53,6 +65,13 @@ export default function MobileReader({ locale, titles }: { locale: string; title
   const [searchOpen, setSearchOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  // "Editar PDF" de verdade (texto e imagens do próprio arquivo)
+  const editorRef = useRef<PageEditor | null>(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
+  const savingRef = useRef(false);
+  const discardRef = useRef(0);
+  const [pe, setPe] = useState<EditStatus | null>(null);
+  const [peMsg, setPeMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,10 +241,109 @@ export default function MobileReader({ locale, titles }: { locale: string; title
     setMoreOpen(false);
     if (id === 'sign-pdf') return startCreating(EDITOR.SIGN);
     if (id === 'add-stamps') return startCreating(EDITOR.STAMP);
-    if (id === 'edit-pdf') return selectMode(EDITOR.TEXT);
+    if (id === 'edit-pdf') return startPdfEdit();
     if (id === 'pdf-reader') return;
     if (IN_APP_TOOLS.includes(id)) return openPanel(id);
     setHost(id);
+  };
+
+  const startPdfEdit = () => {
+    const app = getApp();
+    const win = iframeRef.current?.contentWindow;
+    if (!app || !win || editorRef.current) return;
+    if (mode !== EDITOR.NONE) selectMode(EDITOR.NONE);
+    setSearchOpen(false);
+    setMoreOpen(false);
+    discardRef.current = 0;
+    const ed = new PageEditor(win, app as unknown as EditorApp, setPe);
+    editorRef.current = ed;
+    ed.start();
+    setPe(ed.status());
+    // o motor que grava a edição carrega em segundo plano enquanto a pessoa edita
+    warmupEngine().catch(() => undefined);
+  };
+
+  const closePdfEdit = () => {
+    editorRef.current?.destroy();
+    editorRef.current = null;
+    setPe(null);
+  };
+
+  const finishPdfEdit = async () => {
+    const ed = editorRef.current;
+    if (!ed || savingRef.current) return;
+    ed.commitEditing();
+    const ops = ed.getOps();
+    if (ops.length === 0) {
+      closePdfEdit();
+      return;
+    }
+    savingRef.current = true;
+    const saving = pt ? 'Salvando a edição…' : 'Saving your edits…';
+    setPeMsg(isEngineReady() ? saving : pt ? 'Preparando o editor (só na primeira vez)…' : 'Preparing the editor (first time only)…');
+    onEngineStatus((st) => {
+      if (st === 'saving') setPeMsg(saving);
+    });
+    try {
+      const before = await getBytes();
+      const { bytes, warnings } = await applyEdits(before, ops);
+      closePdfEdit();
+      onResult(new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' }), before);
+      if (warnings.includes('image-not-editable')) {
+        flash(pt ? 'Edição salva. Uma imagem não pôde ser alterada.' : 'Saved. One image could not be changed.');
+      }
+    } catch {
+      flash(pt ? 'Não foi possível salvar a edição. Tente de novo.' : 'Could not save the edits. Try again.');
+    } finally {
+      onEngineStatus(null);
+      savingRef.current = false;
+      setPeMsg(null);
+    }
+  };
+
+  const discardPdfEdit = () => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    if (ed.hasChanges() && Date.now() - discardRef.current > 2500) {
+      discardRef.current = Date.now();
+      flash(pt ? 'Toque no X de novo para descartar a edição.' : 'Tap X again to discard your edits.');
+      return;
+    }
+    closePdfEdit();
+  };
+
+  const onPickImage = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+      const w = Math.max(1, Math.round(img.naturalWidth * k));
+      const h = Math.max(1, Math.round(img.naturalHeight * k));
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      c.getContext('2d')?.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      const jpeg = /jpe?g/i.test(file.type);
+      editorRef.current?.addImage(c.toDataURL(jpeg ? 'image/jpeg' : 'image/png', 0.9), w, h);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      flash(pt ? 'Não foi possível abrir essa imagem.' : 'Could not open that image.');
+    };
+    img.src = url;
+  };
+
+  const peAct: EditActions = {
+    addText: () => editorRef.current?.startAddText(),
+    addImage: () => imgInputRef.current?.click(),
+    remove: () => editorRef.current?.deleteSelected(),
+    size: (d) => editorRef.current?.setSize(d),
+    bold: () => editorRef.current?.toggleBold(),
+    color: (c) => editorRef.current?.setColor(c),
   };
 
   const find = (query: string, again: boolean, back: boolean) => {
@@ -263,14 +381,42 @@ export default function MobileReader({ locale, titles }: { locale: string; title
   const editorUI = () => editorManager(getApp());
 
   const tools = [
-    { m: EDITOR.TEXT, label: pt ? 'Texto' : 'Text', Icon: Type },
     { m: EDITOR.HIGHLIGHT, label: pt ? 'Realce' : 'Highlight', Icon: Highlighter },
     { m: EDITOR.DRAW, label: pt ? 'Desenhar' : 'Draw', Icon: Pencil },
   ];
 
   return (
     <div className="r-root">
-      {editing ? (
+      {pe ? (
+        <header className="r-top r-top-edit">
+          <button className="r-btn" aria-label={pt ? 'Descartar edição' : 'Discard edits'} onMouseDown={(e) => e.preventDefault()} onClick={discardPdfEdit}>
+            <X />
+          </button>
+          <button className="r-done" onMouseDown={(e) => e.preventDefault()} onClick={finishPdfEdit} disabled={!!peMsg}>
+            <Check aria-hidden="true" />
+            {pt ? 'Concluído' : 'Done'}
+          </button>
+          <span className="r-grow" />
+          <button
+            className="r-btn"
+            aria-label={pt ? 'Desfazer' : 'Undo'}
+            disabled={!pe.canUndo}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editorRef.current?.undo()}
+          >
+            <Undo2 />
+          </button>
+          <button
+            className="r-btn"
+            aria-label={pt ? 'Refazer' : 'Redo'}
+            disabled={!pe.canRedo}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editorRef.current?.redo()}
+          >
+            <Redo2 />
+          </button>
+        </header>
+      ) : editing ? (
         <header className="r-top r-top-edit">
           <button className="r-done" onClick={() => selectMode(EDITOR.NONE)}>
             <Check aria-hidden="true" />
@@ -303,7 +449,8 @@ export default function MobileReader({ locale, titles }: { locale: string; title
           </button>
         </header>
       )}
-      {searchOpen && !editing && (
+      {pe && <EditPdfFormat status={pe} pt={pt} act={peAct} />}
+      {searchOpen && !editing && !pe && (
         <div className="r-search">
           <input
             autoFocus
@@ -335,8 +482,15 @@ export default function MobileReader({ locale, titles }: { locale: string; title
         {!error && !src && !host && <p className="r-msg">{pt ? 'Abrindo…' : 'Opening…'}</p>}
         {src && <iframe ref={iframeRef} src={src} onLoad={onLoad} className="r-frame" title={name} />}
       </div>
-      {editing && <FormatBar mode={mode} pt={pt} getApp={getApp} />}
+      {editing && !pe && <FormatBar mode={mode} pt={pt} getApp={getApp} />}
+      {pe ? (
+        <EditPdfBottom status={pe} pt={pt} act={peAct} />
+      ) : (
       <nav className="r-bottom" aria-label={pt ? 'Ferramentas de edição' : 'Editing tools'}>
+        <button className="r-tool" onClick={startPdfEdit} disabled={!src}>
+          <Edit aria-hidden="true" />
+          {pt ? 'Editar' : 'Edit'}
+        </button>
         {tools.map(({ m, label, Icon }) => (
           <button key={m} className="r-tool" aria-pressed={mode === m} onClick={() => toggleMode(m)} disabled={!src}>
             <Icon aria-hidden="true" />
@@ -352,6 +506,15 @@ export default function MobileReader({ locale, titles }: { locale: string; title
           {pt ? 'Mais' : 'More'}
         </button>
       </nav>
+      )}
+      <input ref={imgInputRef} type="file" accept="image/*" hidden onChange={onPickImage} />
+      {pe && <EditBack onBack={finishPdfEdit} />}
+      {peMsg && (
+        <div className="pe-busy" role="status">
+          <Loader2 className="pe-spin" aria-hidden="true" />
+          <p>{peMsg}</p>
+        </div>
+      )}
       {toast && <div className="r-toast" role="status">{toast}</div>}
       {moreOpen && (
         <MoreToolsSheet locale={locale} titles={titles} featured={IN_APP_TOOLS} onPick={openTool} onClose={() => setMoreOpen(false)} />
