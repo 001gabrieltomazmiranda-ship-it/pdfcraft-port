@@ -1,0 +1,12 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Salvar na pasta escolhida e abrir PDFs vindos de outros apps."
+permissions = [
+  "allow-pick-folder",
+  "allow-folder-info",
+  "allow-write-temp",
+  "allow-save",
+  "allow-take-opened",
+  "allow-read-opened",
+]

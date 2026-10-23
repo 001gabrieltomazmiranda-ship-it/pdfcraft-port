@@ -106,20 +106,33 @@ export function removeRecent(id: string): RecentDoc[] {
   return list;
 }
 
-export async function saveBytes(name: string, input: Uint8Array): Promise<'saved' | 'cancelled'> {
+export interface SaveResult {
+  status: 'saved' | 'cancelled';
+  /** frase para mostrar depois de salvar */
+  message?: string;
+}
+
+export async function saveBytes(name: string, input: Uint8Array): Promise<SaveResult> {
   // cópia "desta janela": um Uint8Array vindo de um iframe não é reconhecido pelo Tauri no Android
   const bytes = new Uint8Array(input.length);
   bytes.set(input);
+  const { androidFilesReady } = await import('@/lib/android-files');
+  if (await androidFilesReady()) {
+    // Android: o app pergunta o nome (com o .pdf fixo), salva na pasta escolhida
+    // e avisa antes de substituir um arquivo com o mesmo nome
+    const { openSaveSheet } = await import('@/components/mobile/save/SaveSheet');
+    return openSaveSheet(name, bytes);
+  }
   if (isTauri()) {
     const { save } = await import('@tauri-apps/plugin-dialog');
     const path = await save({
       defaultPath: name,
       filters: [{ name: 'PDF', extensions: ['pdf'] }],
     });
-    if (!path) return 'cancelled';
+    if (!path) return { status: 'cancelled' };
     const { writeFile } = await import('@tauri-apps/plugin-fs');
     await writeFile(path, bytes);
-    return 'saved';
+    return { status: 'saved' };
   }
   const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
@@ -130,5 +143,5 @@ export async function saveBytes(name: string, input: Uint8Array): Promise<'saved
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
-  return 'saved';
+  return { status: 'saved' };
 }

@@ -188,6 +188,21 @@ export async function saveBlobFile(
   const activeFilters =
     filters && filters.length > 0 ? filters : getFiltersForFilename(suggestedName);
 
+  const { androidFilesReady } = await import('@/lib/android-files');
+  if (await androidFilesReady()) {
+    // Android: pergunta o nome (extensão fixa), salva na pasta escolhida e avisa antes de substituir
+    let bytes: Uint8Array;
+    if (fileData instanceof Uint8Array) {
+      bytes = fileData;
+    } else {
+      bytes = new Uint8Array(await fileData.arrayBuffer());
+    }
+    const { openSaveSheet, showSavedToast } = await import('@/components/mobile/save/SaveSheet');
+    const r = await openSaveSheet(suggestedName, bytes);
+    if (r.status === 'saved' && r.message) showSavedToast(r.message);
+    return r.status === 'saved';
+  }
+
   if (isTauri()) {
     const selectedPath = await saveFile(suggestedName, activeFilters);
     if (!selectedPath) {

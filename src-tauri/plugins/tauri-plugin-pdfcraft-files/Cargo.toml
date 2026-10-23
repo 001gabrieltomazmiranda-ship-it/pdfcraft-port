@@ -1,0 +1,13 @@
+[package]
+name = "tauri-plugin-pdfcraft-files"
+version = "0.1.0"
+description = "PDFCraft: salvar numa pasta escolhida (com aviso de arquivo repetido) e abrir PDFs vindos de outros apps no Android"
+edition = "2021"
+publish = false
+links = "tauri-plugin-pdfcraft-files"
+
+[dependencies]
+tauri = { version = "2" }
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }

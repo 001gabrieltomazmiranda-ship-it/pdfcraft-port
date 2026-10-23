@@ -514,7 +514,7 @@ export default function MobileReader({ locale, titles }: { locale: string; title
       const bytes = await getBytes();
       const out = name.replace(/\.pdf$/i, '') + '_editado.pdf';
       const r = await saveBytes(out, bytes);
-      if (r === 'saved') flash(pt ? 'Arquivo salvo.' : 'Saved.');
+      if (r.status === 'saved') flash(r.message || (pt ? 'Arquivo salvo.' : 'Saved.'));
     } catch (err) {
       console.error('[save]', err);
       flash((pt ? 'Não foi possível salvar.' : 'Could not save.') + why(err));

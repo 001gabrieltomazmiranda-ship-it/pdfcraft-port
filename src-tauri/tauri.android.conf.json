@@ -1,0 +1,17 @@
+{
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": [
+          "pdf"
+        ],
+        "mimeType": "application/pdf",
+        "name": "PDF",
+        "androidIntentActionFilters": [
+          "view",
+          "send"
+        ]
+      }
+    ]
+  }
+}
